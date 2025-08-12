@@ -33,6 +33,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Mount static files
@@ -61,11 +62,17 @@ def health_check():
 
 @app.get("/student")
 def student_dashboard():
-    return FileResponse("student/Studentdashboard.html")
+    try:
+        return FileResponse("student/Studentdashboard.html")
+    except FileNotFoundError:
+        return {"error": "Student dashboard not found"}, 404
 
 @app.get("/teacher")
 def teacher_dashboard():
-    return FileResponse("teacher/dashboard.html")
+    try:
+        return FileResponse("teacher/dashboard.html")
+    except FileNotFoundError:
+        return {"error": "Teacher dashboard not found"}, 404
 
 @app.get("/api")
 def api_info():
