@@ -35,6 +35,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="."), name="static")
+
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(quiz.router, prefix="/api/quizzes", tags=["Quizzes"])
@@ -42,13 +45,11 @@ app.include_router(assignment.router, prefix="/api/assignments", tags=["Assignme
 app.include_router(announcement.router, prefix="/api/announcements", tags=["Announcements"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 
+from fastapi.responses import FileResponse
+
 @app.get("/")
 def read_root():
-    return {
-        "message": "Online Learning Platform API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+    return FileResponse("index.html")
 
 @app.get("/health")
 def health_check():
@@ -56,4 +57,20 @@ def health_check():
         "status": "healthy",
         "message": "Online Learning Platform API is running",
         "version": "1.0.0"
+    }
+
+@app.get("/student")
+def student_dashboard():
+    return FileResponse("student/Studentdashboard.html")
+
+@app.get("/teacher")
+def teacher_dashboard():
+    return FileResponse("teacher/dashboard.html")
+
+@app.get("/api")
+def api_info():
+    return {
+        "message": "Online Learning Platform API",
+        "version": "1.0.0",
+        "docs": "/docs"
     }
