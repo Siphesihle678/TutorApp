@@ -366,7 +366,7 @@
                             <label class="form-label">Question Type</label>
                             <select class="form-control" id="questionType${questionCounter}" onchange="toggleOptions(${questionCounter})" required>
                                 <option value="multiple_choice">Multiple Choice</option>
-                                <option value="text">Text Answer</option>
+                                <option value="short_answer">Short Answer</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -468,6 +468,7 @@
             });
 
             try {
+                console.log('Sending quiz data:', quizData);
                 const response = await fetch(`${API_BASE_URL}/quizzes/`, {
                     method: 'POST',
                     headers: {
@@ -482,12 +483,23 @@
                     bootstrap.Modal.getInstance(document.getElementById('createQuizModal')).hide();
                     loadQuizzes();
                 } else {
-                    const error = await response.json();
-                    alert('Error creating quiz: ' + error.detail);
+                    const errorData = await response.json();
+                    console.error('Quiz creation error:', errorData);
+                    let errorMessage = 'Error creating quiz';
+                    if (errorData.detail) {
+                        if (typeof errorData.detail === 'string') {
+                            errorMessage += ': ' + errorData.detail;
+                        } else if (Array.isArray(errorData.detail)) {
+                            errorMessage += ': ' + errorData.detail.map(e => e.msg || e).join(', ');
+                        } else {
+                            errorMessage += ': ' + JSON.stringify(errorData.detail);
+                        }
+                    }
+                    alert(errorMessage);
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error creating quiz: ' + error.message);
+                alert('Error creating quiz: ' + (error.message || 'Unknown error'));
             }
         }
 
