@@ -10,6 +10,10 @@
         .sidebar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: white; }
         .main-content { padding: 30px; }
         .stats-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .question-card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .option-input { margin-bottom: 10px; }
+        .remove-btn { color: #dc3545; cursor: pointer; }
+        .add-btn { color: #28a745; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -78,8 +82,131 @@
         </div>
     </div>
 
+    <!-- Quiz Creation Modal -->
+    <div class="modal fade" id="createQuizModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Quiz</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quizForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Quiz Title</label>
+                                <input type="text" class="form-control" id="quizTitle" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Subject</label>
+                                <select class="form-control" id="quizSubject" required>
+                                    <option value="">Select Subject</option>
+                                    <option value="CAT">CAT</option>
+                                    <option value="Mathematics">Mathematics</option>
+                                    <option value="Physical Sciences">Physical Sciences</option>
+                                    <option value="Life Sciences">Life Sciences</option>
+                                    <option value="English">English</option>
+                                    <option value="Afrikaans">Afrikaans</option>
+                                    <option value="History">History</option>
+                                    <option value="Geography">Geography</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Time Limit (minutes)</label>
+                                <input type="number" class="form-control" id="quizTimeLimit" min="1" placeholder="Leave empty for no limit">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Passing Score (%)</label>
+                                <input type="number" class="form-control" id="quizPassingScore" min="0" max="100" value="60">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="quizDescription" rows="3" placeholder="Optional quiz description"></textarea>
+                        </div>
+                        
+                        <hr>
+                        <h5>Questions</h5>
+                        <div id="questionsContainer">
+                            <!-- Questions will be added here -->
+                        </div>
+                        
+                        <button type="button" class="btn btn-success" onclick="addQuestion()">
+                            <i class="fas fa-plus"></i> Add Question
+                        </button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuiz()">Create Quiz</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Creation Modal -->
+    <div class="modal fade" id="createAssignmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Assignment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignmentForm">
+                        <div class="mb-3">
+                            <label class="form-label">Assignment Title</label>
+                            <input type="text" class="form-control" id="assignmentTitle" required>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Subject</label>
+                                <select class="form-control" id="assignmentSubject" required>
+                                    <option value="">Select Subject</option>
+                                    <option value="CAT">CAT</option>
+                                    <option value="Mathematics">Mathematics</option>
+                                    <option value="Physical Sciences">Physical Sciences</option>
+                                    <option value="Life Sciences">Life Sciences</option>
+                                    <option value="English">English</option>
+                                    <option value="Afrikaans">Afrikaans</option>
+                                    <option value="History">History</option>
+                                    <option value="Geography">Geography</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Max Points</label>
+                                <input type="number" class="form-control" id="assignmentMaxPoints" min="1" value="100">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Due Date</label>
+                            <input type="datetime-local" class="form-control" id="assignmentDueDate" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="assignmentDescription" rows="5" placeholder="Assignment instructions and requirements"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAssignment()">Create Assignment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const API_BASE_URL = window.location.origin + '/api';
+        let questionCounter = 0;
         
         document.addEventListener('DOMContentLoaded', function() {
             const token = localStorage.getItem('token');
@@ -138,10 +265,17 @@
                 if (response.ok) {
                     const quizzes = await response.json();
                     const html = quizzes.map(quiz => 
-                        `<div class="card mb-3"><div class="card-body">
-                            <h5>${quiz.title}</h5>
-                            <p>Subject: ${quiz.subject}</p>
-                        </div></div>`
+                        `<div class="card mb-3">
+                            <div class="card-body">
+                                <h5>${quiz.title}</h5>
+                                <p><strong>Subject:</strong> ${quiz.subject}</p>
+                                <p><strong>Questions:</strong> ${quiz.questions ? quiz.questions.length : 0}</p>
+                                <p><strong>Time Limit:</strong> ${quiz.time_limit ? quiz.time_limit + ' minutes' : 'No limit'}</p>
+                                <p><strong>Passing Score:</strong> ${quiz.passing_score}%</p>
+                                <button class="btn btn-sm btn-info" onclick="viewQuizDetails(${quiz.id})">View Details</button>
+                                <button class="btn btn-sm btn-warning" onclick="toggleQuizStatus(${quiz.id}, ${quiz.is_active})">${quiz.is_active ? 'Deactivate' : 'Activate'}</button>
+                            </div>
+                        </div>`
                     ).join('');
                     document.getElementById('quizzesList').innerHTML = html || 'No quizzes found';
                 }
@@ -157,12 +291,19 @@
                 });
                 if (response.ok) {
                     const assignments = await response.json();
-                    const html = assignments.map(assignment => 
-                        `<div class="card mb-3"><div class="card-body">
-                            <h5>${assignment.title}</h5>
-                            <p>Subject: ${assignment.subject}</p>
-                        </div></div>`
-                    ).join('');
+                    const html = assignments.map(assignment => {
+                        const dueDate = new Date(assignment.due_date).toLocaleDateString();
+                        return `<div class="card mb-3">
+                            <div class="card-body">
+                                <h5>${assignment.title}</h5>
+                                <p><strong>Subject:</strong> ${assignment.subject}</p>
+                                <p><strong>Due Date:</strong> ${dueDate}</p>
+                                <p><strong>Max Points:</strong> ${assignment.max_points}</p>
+                                <button class="btn btn-sm btn-info" onclick="viewAssignmentDetails(${assignment.id})">View Details</button>
+                                <button class="btn btn-sm btn-warning" onclick="toggleAssignmentStatus(${assignment.id}, ${assignment.is_active})">${assignment.is_active ? 'Deactivate' : 'Activate'}</button>
+                            </div>
+                        </div>`;
+                    }).join('');
                     document.getElementById('assignmentsList').innerHTML = html || 'No assignments found';
                 }
             } catch (error) {
@@ -178,10 +319,13 @@
                 if (response.ok) {
                     const students = await response.json();
                     const html = students.map(student => 
-                        `<div class="card mb-3"><div class="card-body">
-                            <h5>${student.student_name}</h5>
-                            <p>Overall Performance: ${student.overall_percentage}%</p>
-                        </div></div>`
+                        `<div class="card mb-3">
+                            <div class="card-body">
+                                <h5>${student.student_name}</h5>
+                                <p>Overall Performance: ${student.overall_percentage}%</p>
+                                <button class="btn btn-sm btn-info" onclick="viewStudentDetails(${student.student_id})">View Details</button>
+                            </div>
+                        </div>`
                     ).join('');
                     document.getElementById('studentsList').innerHTML = html || 'No students found';
                 }
@@ -191,11 +335,217 @@
         }
 
         function showCreateQuizModal() {
-            alert('Create Quiz functionality coming soon!');
+            questionCounter = 0;
+            document.getElementById('questionsContainer').innerHTML = '';
+            addQuestion(); // Add first question
+            new bootstrap.Modal(document.getElementById('createQuizModal')).show();
         }
 
         function showCreateAssignmentModal() {
-            alert('Create Assignment functionality coming soon!');
+            new bootstrap.Modal(document.getElementById('createAssignmentModal')).show();
+        }
+
+        function addQuestion() {
+            questionCounter++;
+            const questionHtml = `
+                <div class="question-card" id="question${questionCounter}">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6>Question ${questionCounter}</h6>
+                        <span class="remove-btn" onclick="removeQuestion(${questionCounter})">× Remove</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Question Text</label>
+                        <textarea class="form-control" id="questionText${questionCounter}" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Question Type</label>
+                            <select class="form-control" id="questionType${questionCounter}" onchange="toggleOptions(${questionCounter})" required>
+                                <option value="multiple_choice">Multiple Choice</option>
+                                <option value="text">Text Answer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Points</label>
+                            <input type="number" class="form-control" id="questionPoints${questionCounter}" min="0.5" step="0.5" value="1.0">
+                        </div>
+                    </div>
+                    
+                    <div id="optionsContainer${questionCounter}">
+                        <label class="form-label">Options</label>
+                        <div class="option-input">
+                            <input type="text" class="form-control" id="option1_${questionCounter}" placeholder="Option 1" required>
+                        </div>
+                        <div class="option-input">
+                            <input type="text" class="form-control" id="option2_${questionCounter}" placeholder="Option 2" required>
+                        </div>
+                        <div class="option-input">
+                            <input type="text" class="form-control" id="option3_${questionCounter}" placeholder="Option 3" required>
+                        </div>
+                        <div class="option-input">
+                            <input type="text" class="form-control" id="option4_${questionCounter}" placeholder="Option 4" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Correct Answer</label>
+                        <input type="text" class="form-control" id="correctAnswer${questionCounter}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Explanation (Optional)</label>
+                        <textarea class="form-control" id="explanation${questionCounter}" rows="2" placeholder="Explanation for the correct answer"></textarea>
+                    </div>
+                </div>
+            `;
+            document.getElementById('questionsContainer').insertAdjacentHTML('beforeend', questionHtml);
+        }
+
+        function removeQuestion(questionNumber) {
+            document.getElementById(`question${questionNumber}`).remove();
+            // Renumber remaining questions
+            const questions = document.querySelectorAll('.question-card');
+            questions.forEach((question, index) => {
+                const questionNum = index + 1;
+                question.querySelector('h6').textContent = `Question ${questionNum}`;
+                question.id = `question${questionNum}`;
+            });
+            questionCounter = questions.length;
+        }
+
+        function toggleOptions(questionNumber) {
+            const questionType = document.getElementById(`questionType${questionNumber}`).value;
+            const optionsContainer = document.getElementById(`optionsContainer${questionNumber}`);
+            const correctAnswerField = document.getElementById(`correctAnswer${questionNumber}`);
+            
+            if (questionType === 'multiple_choice') {
+                optionsContainer.style.display = 'block';
+                correctAnswerField.placeholder = 'Enter the correct option (e.g., Option 1)';
+            } else {
+                optionsContainer.style.display = 'none';
+                correctAnswerField.placeholder = 'Enter the correct answer';
+            }
+        }
+
+        async function saveQuiz() {
+            const quizData = {
+                title: document.getElementById('quizTitle').value,
+                description: document.getElementById('quizDescription').value,
+                subject: document.getElementById('quizSubject').value,
+                time_limit: document.getElementById('quizTimeLimit').value ? parseInt(document.getElementById('quizTimeLimit').value) : null,
+                passing_score: parseFloat(document.getElementById('quizPassingScore').value),
+                questions: []
+            };
+
+            // Collect questions
+            const questions = document.querySelectorAll('.question-card');
+            questions.forEach((question, index) => {
+                const questionNum = index + 1;
+                const questionType = document.getElementById(`questionType${questionNum}`).value;
+                
+                const questionData = {
+                    text: document.getElementById(`questionText${questionNum}`).value,
+                    question_type: questionType,
+                    correct_answer: document.getElementById(`correctAnswer${questionNum}`).value,
+                    points: parseFloat(document.getElementById(`questionPoints${questionNum}`).value),
+                    explanation: document.getElementById(`explanation${questionNum}`).value || null
+                };
+
+                if (questionType === 'multiple_choice') {
+                    questionData.options = [
+                        document.getElementById(`option1_${questionNum}`).value,
+                        document.getElementById(`option2_${questionNum}`).value,
+                        document.getElementById(`option3_${questionNum}`).value,
+                        document.getElementById(`option4_${questionNum}`).value
+                    ];
+                }
+
+                quizData.questions.push(questionData);
+            });
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/quizzes/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(quizData)
+                });
+
+                if (response.ok) {
+                    alert('Quiz created successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('createQuizModal')).hide();
+                    loadQuizzes();
+                } else {
+                    const error = await response.json();
+                    alert('Error creating quiz: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error creating quiz: ' + error.message);
+            }
+        }
+
+        async function saveAssignment() {
+            const assignmentData = {
+                title: document.getElementById('assignmentTitle').value,
+                description: document.getElementById('assignmentDescription').value,
+                subject: document.getElementById('assignmentSubject').value,
+                max_points: parseFloat(document.getElementById('assignmentMaxPoints').value),
+                due_date: document.getElementById('assignmentDueDate').value,
+                is_active: true
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/assignments/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(assignmentData)
+                });
+
+                if (response.ok) {
+                    alert('Assignment created successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('createAssignmentModal')).hide();
+                    loadAssignments();
+                } else {
+                    const error = await response.json();
+                    alert('Error creating assignment: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error creating assignment: ' + error.message);
+            }
+        }
+
+        function viewQuizDetails(quizId) {
+            // Implement quiz details view
+            alert('Quiz details view coming soon!');
+        }
+
+        function toggleQuizStatus(quizId, currentStatus) {
+            // Implement quiz status toggle
+            alert('Quiz status toggle coming soon!');
+        }
+
+        function viewAssignmentDetails(assignmentId) {
+            // Implement assignment details view
+            alert('Assignment details view coming soon!');
+        }
+
+        function toggleAssignmentStatus(assignmentId, currentStatus) {
+            // Implement assignment status toggle
+            alert('Assignment status toggle coming soon!');
+        }
+
+        function viewStudentDetails(studentId) {
+            // Implement student details view
+            alert('Student details view coming soon!');
         }
 
         function logout() {

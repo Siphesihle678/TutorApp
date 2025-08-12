@@ -167,19 +167,46 @@
                 
                 if (response.ok) {
                     const quizzes = await response.json();
+                    if (quizzes.length === 0) {
+                        document.getElementById('quizzesList').innerHTML = '<div class="alert alert-info">No quizzes available at the moment. Check back later!</div>';
+                        return;
+                    }
+                    
                     const html = quizzes.map(quiz => 
                         `<div class="quiz-card">
-                            <h5>${quiz.title}</h5>
-                            <p><strong>Subject:</strong> ${quiz.subject}</p>
-                            <p><strong>Questions:</strong> ${quiz.questions ? quiz.questions.length : 0}</p>
-                            <p><strong>Time Limit:</strong> ${quiz.time_limit ? quiz.time_limit + ' minutes' : 'No limit'}</p>
-                            <button class="btn btn-primary" onclick="startQuiz(${quiz.id})">Start Quiz</button>
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5>${quiz.title}</h5>
+                                    <p class="text-muted">${quiz.description || 'No description available'}</p>
+                                </div>
+                                <span class="badge bg-primary">${quiz.subject}</span>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-3">
+                                    <small class="text-muted">Questions</small>
+                                    <p class="mb-0"><strong>${quiz.questions ? quiz.questions.length : 0}</strong></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted">Time Limit</small>
+                                    <p class="mb-0"><strong>${quiz.time_limit ? quiz.time_limit + ' min' : 'No limit'}</strong></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted">Passing Score</small>
+                                    <p class="mb-0"><strong>${quiz.passing_score}%</strong></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-primary btn-sm" onclick="startQuiz(${quiz.id})">
+                                        <i class="fas fa-play"></i> Start Quiz
+                                    </button>
+                                </div>
+                            </div>
                         </div>`
                     ).join('');
-                    document.getElementById('quizzesList').innerHTML = html || 'No quizzes available';
+                    document.getElementById('quizzesList').innerHTML = html;
                 }
             } catch (error) {
                 console.error('Error:', error);
+                document.getElementById('quizzesList').innerHTML = '<div class="alert alert-danger">Error loading quizzes. Please try again.</div>';
             }
         }
 
