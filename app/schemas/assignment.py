@@ -7,7 +7,7 @@ class AssignmentBase(BaseModel):
     description: str
     subject: str
     due_date: datetime
-    points: float = 100.0
+    max_points: float = 100.0
     is_active: bool = True
 
 class AssignmentCreate(AssignmentBase):
@@ -36,6 +36,16 @@ class AssignmentSubmissionRead(AssignmentSubmissionBase):
     submitted_at: datetime
     grade: Optional[float] = None
     feedback: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class AssignmentGrade(BaseModel):
+    submission_id: int
+    grade: float
+    feedback: Optional[str] = None
+    graded_by: int
+    graded_at: datetime = datetime.utcnow()
 
     class Config:
         from_attributes = True

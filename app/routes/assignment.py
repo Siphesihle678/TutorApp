@@ -139,13 +139,13 @@ def grade_assignment(
         raise HTTPException(status_code=404, detail="Submission not found")
     
     # Update submission with grade
-    submission.score = grade_data.score
+    submission.score = grade_data.grade
     submission.feedback = grade_data.feedback
     submission.graded_at = datetime.utcnow()
     
     # Calculate percentage
     assignment = db.query(Assignment).filter(Assignment.id == submission.assignment_id).first()
-    percentage = (grade_data.score / assignment.max_points) * 100 if assignment.max_points > 0 else 0
+    percentage = (grade_data.grade / assignment.max_points) * 100 if assignment.max_points > 0 else 0
     
     # Create performance record
     performance_record = PerformanceRecord(
@@ -153,7 +153,7 @@ def grade_assignment(
         subject=assignment.subject,
         assessment_type="assignment",
         assessment_id=assignment.id,
-        score=grade_data.score,
+        score=grade_data.grade,
         max_score=assignment.max_points,
         percentage=percentage,
         strengths=[],  # TODO: Analyze strengths based on feedback
@@ -171,7 +171,7 @@ def grade_assignment(
             student.email,
             student.name,
             assignment.title,
-            grade_data.score,
+            grade_data.grade,
             assignment.max_points
         )
     
