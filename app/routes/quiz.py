@@ -188,6 +188,49 @@ def start_quiz(
     
     return attempt
 
+@router.post("/{quiz_id}/start")
+def start_quiz(
+    quiz_id: int,
+    current_student: User = Depends(get_current_student),
+    db: Session = Depends(get_db)
+):
+    """Start a quiz attempt"""
+    # Check if quiz exists and is active
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_active == True).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found or not active")
+    
+    # Check if student already has an active attempt
+    existing_attempt = db.query(QuizAttempt).filter(
+        QuizAttempt.quiz_id == quiz_id,
+        QuizAttempt.student_id == current_student.id,
+        QuizAttempt.completed_at == None
+    ).first()
+    
+    if existing_attempt:
+        # Return existing attempt
+        return {
+            "attempt_id": existing_attempt.id,
+            "started_at": existing_attempt.started_at,
+            "message": "Resuming existing quiz attempt"
+        }
+    
+    # Create new attempt
+    attempt = QuizAttempt(
+        quiz_id=quiz_id,
+        student_id=current_student.id,
+        started_at=datetime.utcnow()
+    )
+    db.add(attempt)
+    db.commit()
+    db.refresh(attempt)
+    
+    return {
+        "attempt_id": attempt.id,
+        "started_at": attempt.started_at,
+        "message": "Quiz attempt started successfully"
+    }
+
 @router.post("/{quiz_id}/submit")
 def submit_quiz(
     quiz_id: int,
