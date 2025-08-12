@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Excel Quiz Creator for TutorApp
-Based on the user's Excel Marks Analysis quiz
+Excel Quiz Creator for TutorApp - Simple Version
+Uses built-in Python libraries instead of requests
 """
 
-import requests
+import urllib.request
+import urllib.parse
 import json
 
-# Replace with your actual Railway URL
-RAILWAY_URL = "https://tutorapp-production.up.railway.app"  # Your actual Railway URL
+# Your Railway URL
+RAILWAY_URL = "https://tutorapp-production.up.railway.app"
 
 def create_excel_quiz():
-    """Create the Excel quiz via API"""
+    """Create the Excel quiz via API using built-in libraries"""
     
     # First, login as teacher to get token
     login_data = {
@@ -21,14 +22,23 @@ def create_excel_quiz():
     
     try:
         # Login
-        login_response = requests.post(f"{RAILWAY_URL}/api/auth/login", json=login_data)
-        if not login_response.ok:
-            print("❌ Login failed. Please create a teacher account first.")
-            print("Go to your app and register as a teacher with email: teacher@example.com")
-            return
+        login_url = f"{RAILWAY_URL}/api/auth/login"
+        login_json = json.dumps(login_data).encode('utf-8')
         
-        token_data = login_response.json()
-        token = token_data["access_token"]
+        login_req = urllib.request.Request(
+            login_url,
+            data=login_json,
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        with urllib.request.urlopen(login_req) as response:
+            if response.status != 200:
+                print("❌ Login failed. Please create a teacher account first.")
+                print("Go to your app and register as a teacher with email: teacher@example.com")
+                return
+            
+            token_data = json.loads(response.read().decode('utf-8'))
+            token = token_data["access_token"]
         
         # Excel Quiz data based on the user's HTML example
         quiz_data = {
@@ -105,32 +115,38 @@ def create_excel_quiz():
         }
         
         # Create quiz
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {token}"
-        }
+        quiz_url = f"{RAILWAY_URL}/api/quizzes/"
+        quiz_json = json.dumps(quiz_data).encode('utf-8')
         
-        quiz_response = requests.post(f"{RAILWAY_URL}/api/quizzes/", json=quiz_data, headers=headers)
+        quiz_req = urllib.request.Request(
+            quiz_url,
+            data=quiz_json,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {token}'
+            }
+        )
         
-        if quiz_response.ok:
-            print("✅ Excel quiz created successfully!")
-            print("📊 Quiz: Excel — Student Marks Analysis (Auto-graded)")
-            print("📝 Questions: 9 text-based questions")
-            print("⏱️ Time Limit: 45 minutes")
-            print("🎯 Passing Score: 60%")
-            print("\n📋 Question Types:")
-            print("   • Text-based answers (not multiple choice)")
-            print("   • Students type their responses")
-            print("   • Auto-graded based on exact text matching")
-            print("\n🚀 You can now test the quiz with a student account!")
-        else:
-            print(f"❌ Error creating quiz: {quiz_response.text}")
-            
+        with urllib.request.urlopen(quiz_req) as response:
+            if response.status == 200:
+                print("✅ Excel quiz created successfully!")
+                print("📊 Quiz: Excel — Student Marks Analysis (Auto-graded)")
+                print("📝 Questions: 9 text-based questions")
+                print("⏱️ Time Limit: 45 minutes")
+                print("🎯 Passing Score: 60%")
+                print("\n📋 Question Types:")
+                print("   • Text-based answers (not multiple choice)")
+                print("   • Students type their responses")
+                print("   • Auto-graded based on exact text matching")
+                print("\n🚀 You can now test the quiz with a student account!")
+            else:
+                print(f"❌ Error creating quiz: {response.read().decode('utf-8')}")
+                
     except Exception as e:
         print(f"❌ Error: {e}")
         print("Make sure your app is running and accessible at the URL above.")
 
 if __name__ == "__main__":
     print("🎯 Creating Excel quiz for CAT Grade 11...")
-    print("⚠️  Make sure to update the RAILWAY_URL variable with your actual app URL!")
+    print("⚠️  Make sure you have a teacher account on your app first!")
     create_excel_quiz()
