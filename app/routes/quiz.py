@@ -156,38 +156,6 @@ def toggle_quiz_status(
 
 # ==================== QUIZ TAKING (STUDENTS) ====================
 
-@router.post("/{quiz_id}/start", response_model=QuizAttemptCreate)
-def start_quiz(
-    quiz_id: int,
-    current_student: User = Depends(get_current_student),
-    db: Session = Depends(get_db)
-):
-    """Start a quiz attempt"""
-    quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_active == True).first()
-    if not quiz:
-        raise HTTPException(status_code=404, detail="Quiz not found")
-    
-    # Check if student already has an active attempt
-    existing_attempt = db.query(QuizAttempt).filter(
-        QuizAttempt.quiz_id == quiz_id,
-        QuizAttempt.student_id == current_student.id,
-        QuizAttempt.completed_at == None
-    ).first()
-    
-    if existing_attempt:
-        return existing_attempt
-    
-    # Create new attempt
-    attempt = QuizAttempt(
-        quiz_id=quiz_id,
-        student_id=current_student.id
-    )
-    db.add(attempt)
-    db.commit()
-    db.refresh(attempt)
-    
-    return attempt
-
 @router.post("/{quiz_id}/start")
 def start_quiz(
     quiz_id: int,
