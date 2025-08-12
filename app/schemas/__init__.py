@@ -3,6 +3,16 @@ from .quiz import QuizCreate, QuizRead, QuestionCreate, QuestionRead, QuizAttemp
 from .assignment import AssignmentCreate, AssignmentRead, AssignmentSubmissionCreate, AssignmentSubmissionRead
 from .announcement import AnnouncementCreate, AnnouncementRead
 from .performance import PerformanceRecordRead
+from .ai_features import (
+    QuizGenerationRequest, QuizGenerationResponse,
+    AssignmentGradingRequest, AssignmentGradingResponse,
+    LessonPlanRequest, LessonPlanResponse,
+    PracticeProblemsRequest, PracticeProblemsResponse,
+    PerformanceAnalysisRequest, PerformanceAnalysisResponse,
+    RubricCreationRequest, RubricCreationResponse,
+    ContentGenerationRequest, ContentGenerationResponse,
+    TeachingFeedbackRequest, TeachingFeedbackResponse
+)
 
 __all__ = [
     "UserCreate", "UserRead", "UserUpdate", "UserLogin",
@@ -10,5 +20,13 @@ __all__ = [
     "QuizAttemptCreate", "QuizAttemptRead",
     "AssignmentCreate", "AssignmentRead", "AssignmentSubmissionCreate", "AssignmentSubmissionRead",
     "AnnouncementCreate", "AnnouncementRead",
-    "PerformanceRecordRead"
+    "PerformanceRecordRead",
+    "QuizGenerationRequest", "QuizGenerationResponse",
+    "AssignmentGradingRequest", "AssignmentGradingResponse",
+    "LessonPlanRequest", "LessonPlanResponse",
+    "PracticeProblemsRequest", "PracticeProblemsResponse",
+    "PerformanceAnalysisRequest", "PerformanceAnalysisResponse",
+    "RubricCreationRequest", "RubricCreationResponse",
+    "ContentGenerationRequest", "ContentGenerationResponse",
+    "TeachingFeedbackRequest", "TeachingFeedbackResponse"
 ]

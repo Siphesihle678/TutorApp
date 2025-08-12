@@ -274,6 +274,7 @@
                                 <p><strong>Passing Score:</strong> ${quiz.passing_score}%</p>
                                 <button class="btn btn-sm btn-info" onclick="viewQuizDetails(${quiz.id})">View Details</button>
                                 <button class="btn btn-sm btn-warning" onclick="toggleQuizStatus(${quiz.id}, ${quiz.is_active})">${quiz.is_active ? 'Deactivate' : 'Activate'}</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteQuiz(${quiz.id})">Delete</button>
                             </div>
                         </div>`
                     ).join('');
@@ -301,6 +302,7 @@
                                 <p><strong>Max Points:</strong> ${assignment.max_points}</p>
                                 <button class="btn btn-sm btn-info" onclick="viewAssignmentDetails(${assignment.id})">View Details</button>
                                 <button class="btn btn-sm btn-warning" onclick="toggleAssignmentStatus(${assignment.id}, ${assignment.is_active})">${assignment.is_active ? 'Deactivate' : 'Activate'}</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteAssignment(${assignment.id})">Delete</button>
                             </div>
                         </div>`;
                     }).join('');
@@ -523,24 +525,288 @@
             }
         }
 
-        function viewQuizDetails(quizId) {
-            // Implement quiz details view
-            alert('Quiz details view coming soon!');
+        async function viewQuizDetails(quizId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/quizzes/${quizId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (response.ok) {
+                    const quiz = await response.json();
+                    
+                    // Create detailed view
+                    let questionsHtml = '';
+                    if (quiz.questions && quiz.questions.length > 0) {
+                        questionsHtml = quiz.questions.map((q, index) => `
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <h6>Question ${index + 1}: ${q.text}</h6>
+                                    <p><strong>Type:</strong> ${q.question_type}</p>
+                                    <p><strong>Points:</strong> ${q.points}</p>
+                                    ${q.options && q.options.length > 0 ? `<p><strong>Options:</strong> ${q.options.join(', ')}</p>` : ''}
+                                    <p><strong>Correct Answer:</strong> ${q.correct_answer}</p>
+                                    ${q.explanation ? `<p><strong>Explanation:</strong> ${q.explanation}</p>` : ''}
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    const modalHtml = `
+                        <div class="modal fade" id="quizDetailsModal" tabindex="-1">
+                            <div class="modal-dialog modal-xl">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Quiz Details: ${quiz.title}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <p><strong>Subject:</strong> ${quiz.subject}</p>
+                                                <p><strong>Description:</strong> ${quiz.description || 'No description'}</p>
+                                                <p><strong>Time Limit:</strong> ${quiz.time_limit ? quiz.time_limit + ' minutes' : 'No limit'}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Passing Score:</strong> ${quiz.passing_score}%</p>
+                                                <p><strong>Status:</strong> <span class="badge ${quiz.is_active ? 'bg-success' : 'bg-secondary'}">${quiz.is_active ? 'Active' : 'Inactive'}</span></p>
+                                                <p><strong>Questions:</strong> ${quiz.questions ? quiz.questions.length : 0}</p>
+                                                <p><strong>Created:</strong> ${new Date(quiz.created_at).toLocaleDateString()}</p>
+                                            </div>
+                                        </div>
+                                        <h6>Questions:</h6>
+                                        <div class="questions-container">
+                                            ${questionsHtml || '<p>No questions found</p>'}
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-warning" onclick="toggleQuizStatus(${quiz.id}, ${quiz.is_active})">${quiz.is_active ? 'Deactivate' : 'Activate'}</button>
+                                        <button type="button" class="btn btn-danger" onclick="deleteQuiz(${quiz.id})">Delete Quiz</button>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Remove existing modal if any
+                    const existingModal = document.getElementById('quizDetailsModal');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+                    
+                    // Add new modal to body
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+                    
+                    // Show modal
+                    const modal = new bootstrap.Modal(document.getElementById('quizDetailsModal'));
+                    modal.show();
+                    
+                    // Clean up modal after hiding
+                    document.getElementById('quizDetailsModal').addEventListener('hidden.bs.modal', function() {
+                        this.remove();
+                    });
+                    
+                } else {
+                    const error = await response.json();
+                    alert('Error loading quiz details: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error loading quiz details: ' + error.message);
+            }
         }
 
-        function toggleQuizStatus(quizId, currentStatus) {
-            // Implement quiz status toggle
-            alert('Quiz status toggle coming soon!');
+        async function toggleQuizStatus(quizId, currentStatus) {
+            if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this quiz?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/quizzes/${quizId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                    loadQuizzes(); // Refresh the quiz list
+                    
+                    // Close modal if open
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('quizDetailsModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    const error = await response.json();
+                    alert('Error toggling quiz status: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error toggling quiz status: ' + error.message);
+            }
         }
 
-        function viewAssignmentDetails(assignmentId) {
-            // Implement assignment details view
-            alert('Assignment details view coming soon!');
+        async function deleteQuiz(quizId) {
+            if (!confirm('Are you sure you want to delete this quiz? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/quizzes/${quizId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                    loadQuizzes(); // Refresh the quiz list
+                    
+                    // Close modal if open
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('quizDetailsModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    const error = await response.json();
+                    alert('Error deleting quiz: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error deleting quiz: ' + error.message);
+            }
         }
 
-        function toggleAssignmentStatus(assignmentId, currentStatus) {
-            // Implement assignment status toggle
-            alert('Assignment status toggle coming soon!');
+        async function viewAssignmentDetails(assignmentId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (response.ok) {
+                    const assignment = await response.json();
+                    
+                    const modalHtml = `
+                        <div class="modal fade" id="assignmentDetailsModal" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Assignment Details: ${assignment.title}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <p><strong>Subject:</strong> ${assignment.subject}</p>
+                                                <p><strong>Description:</strong> ${assignment.description || 'No description'}</p>
+                                                <p><strong>Max Points:</strong> ${assignment.max_points}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Due Date:</strong> ${assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date'}</p>
+                                                <p><strong>Status:</strong> <span class="badge ${assignment.is_active ? 'bg-success' : 'bg-secondary'}">${assignment.is_active ? 'Active' : 'Inactive'}</span></p>
+                                                <p><strong>Created:</strong> ${new Date(assignment.created_at).toLocaleDateString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-warning" onclick="toggleAssignmentStatus(${assignment.id}, ${assignment.is_active})">${assignment.is_active ? 'Deactivate' : 'Activate'}</button>
+                                        <button type="button" class="btn btn-danger" onclick="deleteAssignment(${assignment.id})">Delete Assignment</button>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Remove existing modal if any
+                    const existingModal = document.getElementById('assignmentDetailsModal');
+                    if (existingModal) {
+                        existingModal.remove();
+                    }
+                    
+                    // Add new modal to body
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+                    
+                    // Show modal
+                    const modal = new bootstrap.Modal(document.getElementById('assignmentDetailsModal'));
+                    modal.show();
+                    
+                    // Clean up modal after hiding
+                    document.getElementById('assignmentDetailsModal').addEventListener('hidden.bs.modal', function() {
+                        this.remove();
+                    });
+                    
+                } else {
+                    const error = await response.json();
+                    alert('Error loading assignment details: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error loading assignment details: ' + error.message);
+            }
+        }
+
+        async function toggleAssignmentStatus(assignmentId, currentStatus) {
+            if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this assignment?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                    loadAssignments(); // Refresh the assignment list
+                    
+                    // Close modal if open
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('assignmentDetailsModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    const error = await response.json();
+                    alert('Error toggling assignment status: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error toggling assignment status: ' + error.message);
+            }
+        }
+
+        async function deleteAssignment(assignmentId) {
+            if (!confirm('Are you sure you want to delete this assignment? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                    loadAssignments(); // Refresh the assignment list
+                    
+                    // Close modal if open
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('assignmentDetailsModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    const error = await response.json();
+                    alert('Error deleting assignment: ' + error.detail);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error deleting assignment: ' + error.message);
+            }
         }
 
         function viewStudentDetails(studentId) {
