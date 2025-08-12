@@ -207,20 +207,27 @@
                         const userData = await userResponse.json();
                         localStorage.setItem('user', JSON.stringify(userData));
                         
-                        // Redirect based on role
-                        if (userData.role === 'teacher') {
-                            window.location.href = 'teacher/dashboard.html';
-                        } else {
-                            window.location.href = 'student/dashboard.html';
-                        }
+                                                 // Redirect based on role
+                         console.log('User data:', userData);
+                         console.log('User role:', userData.role);
+                         
+                         if (userData.role === 'teacher') {
+                             console.log('Redirecting to teacher dashboard...');
+                             window.location.href = '/teacher';
+                         } else {
+                             console.log('Redirecting to student dashboard...');
+                             window.location.href = '/student';
+                         }
                     }
-                } else {
-                    const error = await response.json();
-                    alert('Login failed: ' + error.detail);
-                }
-            } catch (error) {
-                alert('Login failed: ' + error.message);
-            }
+                                 } else {
+                     const error = await response.json();
+                     console.error('Login error:', error);
+                     alert('Login failed: ' + (error.detail || error.message || 'Unknown error'));
+                 }
+             } catch (error) {
+                 console.error('Login exception:', error);
+                 alert('Login failed: ' + error.message);
+             }
         });
 
         // Register form handler
