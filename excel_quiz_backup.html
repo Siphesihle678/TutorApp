@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Marks Analysis — Auto-Graded Quiz</title>
+    <style>
+        :root {
+            --bg: #f7fafc;
+            --card: #ffffff;
+            --accent: #0f766e;
+            --muted: #64748b
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial;
+            background: var(--bg);
+            color: #0f172a
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 16px
+        }
+        
+        header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px
+        }
+        
+        h1 {
+            font-size: 20px;
+            margin: 0
+        }
+        
+        p.lead {
+            margin: 4px 0 12px;
+            color: var(--muted)
+        }
+        
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+        }
+        
+        .question {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #eef2f7
+        }
+        
+        label.qtitle {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px
+        }
+        
+        textarea, input[type="text"], select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 14px
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px
+        }
+        
+        button {
+            background: var(--accent);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 0;
+            font-weight: 600;
+            cursor: pointer
+        }
+        
+        button.secondary {
+            background: #334155
+        }
+        
+        .score {
+            font-weight: 700;
+            font-size: 18px
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+        }
+        
+        .correct {
+            color: #059669;
+            font-weight: 600;
+        }
+        
+        .incorrect {
+            color: #dc2626;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="card" style="padding:12px;display:flex;align-items:center;gap:12px">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M3 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8l-2 2H5a2 2 0 0 1-2-2V7z" stroke="#0f766e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div>
+                    <h1>Excel — Student Marks Analysis (Auto-graded)</h1>
+                    <p class="lead">Answer the questions based on the concepts covered in the lesson, not the activity steps. Press <strong>Check Answers</strong> for instant feedback.</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="card">
+            <form id="quiz">
+                <div class="question">
+                    <label class="qtitle">1) What does the SUM function do in Excel?</label>
+                    <textarea id="q1" rows="2" placeholder="Type your answer here..."></textarea>
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">2) Write the formula to calculate the average of cells D2 to F2.</label>
+                    <input type="text" id="q2" placeholder="e.g., =AVERAGE(D2:F2)" />
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">3) How would you use IF to display "Pass" if a score in H2 is 50 or more, otherwise "Fail"?</label>
+                    <input type="text" id="q3" placeholder="e.g., =IF(H2>=50,\"Pass\",\"Fail\")" />
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">4) Explain what a nested IF formula is used for.</label>
+                    <textarea id="q4" rows="2" placeholder="Type your explanation here..."></textarea>
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">5) Which function would you use to find the highest score in a column?</label>
+                    <input type="text" id="q5" placeholder="e.g., =MAX(column_range)" />
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">6) Describe how COUNTIF works and give one example.</label>
+                    <textarea id="q6" rows="2" placeholder="Type your description and example here..."></textarea>
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">7) What does CONCATENATE do?</label>
+                    <textarea id="q7" rows="2" placeholder="Type your answer here..."></textarea>
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">8) Which function can retrieve data from another table based on a matching value?</label>
+                    <input type="text" id="q8" placeholder="e.g., VLOOKUP" />
+                </div>
+                
+                <div class="question">
+                    <label class="qtitle">9) How would you highlight all scores below 40 using Conditional Formatting?</label>
+                    <textarea id="q9" rows="2" placeholder="Describe the steps here..."></textarea>
+                </div>
+
+                <div class="controls">
+                    <button type="button" id="check">Check Answers</button>
+                    <button type="button" id="reset" class="secondary">Reset Quiz</button>
+                </div>
+            </form>
+
+            <div id="out" style="margin-top:12px"></div>
+        </main>
+    </div>
+
+    <script>
+        const answers = [
+            "It adds up the numbers in the selected cells.",
+            "=AVERAGE(D2:F2)",
+            "=IF(H2>=50,\"Pass\",\"Fail\")",
+            "A formula that uses multiple IF statements inside each other to test several conditions.",
+            "=MAX(column_range)",
+            "Counts the number of cells that meet a condition, e.g., =COUNTIF(A1:A10,\">50\")",
+            "Combines text from two or more cells into one.",
+            "VLOOKUP",
+            "Select the cells → Conditional Formatting → New Rule → Cell Value < 40 → Apply formatting."
+        ];
+
+        const explanations = [
+            "The SUM function calculates the total of all numbers in a specified range of cells.",
+            "The AVERAGE function calculates the arithmetic mean of the specified range.",
+            "The IF function tests a condition and returns one value if true, another if false.",
+            "Nested IF statements allow you to test multiple conditions in a single formula.",
+            "The MAX function returns the largest value in a set of values.",
+            "COUNTIF counts cells that meet a specified criterion within a range.",
+            "CONCATENATE joins multiple text strings into one text string.",
+            "VLOOKUP searches for a value in the first column of a table and returns a value from the same row in another column.",
+            "Conditional Formatting allows you to automatically format cells based on their values."
+        ];
+
+        document.getElementById('check').addEventListener('click', () => {
+            const out = document.getElementById('out');
+            out.innerHTML = '';
+            let total = 0;
+            let results = '<div class="result"><h3>Quiz Results:</h3>';
+            
+            answers.forEach((ans, i) => {
+                const val = document.getElementById(`q${i+1}`).value.trim().toLowerCase();
+                const isCorrect = val === ans.toLowerCase();
+                if (isCorrect) total++;
+                
+                results += `<div style="margin: 10px 0; padding: 10px; border-left: 3px solid ${isCorrect ? '#059669' : '#dc2626'}; background: ${isCorrect ? '#f0fdf4' : '#fef2f2'};">`;
+                results += `<div class="${isCorrect ? 'correct' : 'incorrect'}">Question ${i+1}: ${isCorrect ? '✓ Correct' : '✗ Incorrect'}</div>`;
+                if (!isCorrect) {
+                    results += `<div style="margin-top: 5px;"><strong>Your answer:</strong> ${document.getElementById(`q${i+1}`).value || '(no answer)'}</div>`;
+                    results += `<div style="margin-top: 5px;"><strong>Correct answer:</strong> ${ans}</div>`;
+                    results += `<div style="margin-top: 5px;"><strong>Explanation:</strong> ${explanations[i]}</div>`;
+                }
+                results += '</div>';
+            });
+            
+            const percentage = Math.round((total / answers.length) * 100);
+            const grade = percentage >= 90 ? 'A' : percentage >= 80 ? 'B' : percentage >= 70 ? 'C' : percentage >= 60 ? 'D' : 'F';
+            
+            results += `<div style="margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; text-align: center;">`;
+            results += `<div class="score">Final Score: ${total}/${answers.length} (${percentage}%)</div>`;
+            results += `<div style="margin-top: 5px; font-size: 16px;">Grade: ${grade}</div>`;
+            if (percentage >= 60) {
+                results += `<div style="margin-top: 5px; color: #059669;">🎉 Congratulations! You passed!</div>`;
+            } else {
+                results += `<div style="margin-top: 5px; color: #dc2626;">📚 Keep studying! You need ${60 - percentage}% more to pass.</div>`;
+            }
+            results += '</div></div>';
+            
+            out.innerHTML = results;
+        });
+
+        document.getElementById('reset').addEventListener('click', () => {
+            for (let i = 1; i <= 9; i++) {
+                document.getElementById(`q${i}`).value = '';
+            }
+            document.getElementById('out').innerHTML = '';
+        });
+    </script>
+</body>
+</html>
