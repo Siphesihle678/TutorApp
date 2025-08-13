@@ -427,7 +427,10 @@ def get_quiz_analytics(
     # Question-level analytics
     question_analytics = []
     for question in quiz.questions:
-        submissions = db.query(QuizSubmission).join(QuizAttempt).filter(
+        # Fix the join by using explicit join syntax
+        submissions = db.query(QuizSubmission).join(
+            QuizAttempt, QuizSubmission.attempt_id == QuizAttempt.id
+        ).filter(
             QuizSubmission.question_id == question.id,
             QuizAttempt.quiz_id == quiz_id
         ).all()
