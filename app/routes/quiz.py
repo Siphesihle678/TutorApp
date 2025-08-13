@@ -271,21 +271,7 @@ def submit_quiz(
         attempt.is_passed = is_passed
         attempt.time_taken = int((attempt.completed_at - attempt.started_at).total_seconds())
         
-        # Create performance record
-        performance_record = PerformanceRecord(
-            student_id=current_student.id,
-            subject=quiz.subject,
-            assessment_type="quiz",
-            assessment_id=quiz.id,
-            score=total_score,
-            max_score=total_points,
-            percentage=percentage,
-            strengths=[],
-            weaknesses=[],
-            recommendations=f"Keep practicing {quiz.subject} concepts." if is_passed else f"Review {quiz.subject} fundamentals."
-        )
-        db.add(performance_record)
-        
+        # Commit the changes
         db.commit()
         
         return {
@@ -302,6 +288,9 @@ def submit_quiz(
     except Exception as e:
         # Log the error for debugging
         print(f"Error in quiz submission: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         # Rollback any database changes
         db.rollback()
         # Return a proper JSON error response
