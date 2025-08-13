@@ -18,6 +18,60 @@ from ..schemas.dashboard import (
 
 router = APIRouter()
 
+# ==================== DEBUG ENDPOINTS ====================
+
+@router.get("/debug/students")
+def debug_students(db: Session = Depends(get_db)):
+    """Debug endpoint to check student data"""
+    try:
+        # Get all users
+        all_users = db.query(User).all()
+        
+        # Get students specifically
+        students = db.query(User).filter(User.role == "student").all()
+        active_students = db.query(User).filter(User.role == "student", User.is_active == True).all()
+        
+        return {
+            "total_users": len(all_users),
+            "total_students": len(students),
+            "active_students": len(active_students),
+            "all_users": [
+                {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": user.role,
+                    "is_active": user.is_active,
+                    "created_at": user.created_at
+                }
+                for user in all_users
+            ],
+            "students": [
+                {
+                    "id": student.id,
+                    "name": student.name,
+                    "email": student.email,
+                    "is_active": student.is_active,
+                    "created_at": student.created_at
+                }
+                for student in students
+            ],
+            "active_students": [
+                {
+                    "id": student.id,
+                    "name": student.name,
+                    "email": student.email,
+                    "created_at": student.created_at
+                }
+                for student in active_students
+            ]
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
 # ==================== TEACHER DASHBOARD ====================
 
 @router.get("/teacher/overview", response_model=TeacherDashboard)
@@ -26,11 +80,33 @@ def get_teacher_overview(
     db: Session = Depends(get_db)
 ):
     """Get comprehensive teacher dashboard overview"""
-    # Count students
-    total_students = db.query(User).filter(
+    # Debug: Check all users in the database
+    all_users = db.query(User).all()
+    print(f"=== TEACHER DASHBOARD DEBUG ===")
+    print(f"Total users in database: {len(all_users)}")
+    for user in all_users:
+        print(f"User: ID={user.id}, Name={user.name}, Email={user.email}, Role={user.role}, Active={user.is_active}")
+    
+    # Count students with debugging
+    students_query = db.query(User).filter(
         User.role == "student", 
         User.is_active == True
-    ).count()
+    )
+    print(f"Student query filter: role='student' AND is_active=True")
+    
+    # Check each condition separately
+    all_students = db.query(User).filter(User.role == "student").all()
+    print(f"Users with role='student': {len(all_students)}")
+    for student in all_students:
+        print(f"Student: ID={student.id}, Name={student.name}, Active={student.is_active}")
+    
+    active_students = db.query(User).filter(User.is_active == True).all()
+    print(f"Users with is_active=True: {len(active_students)}")
+    for user in active_students:
+        print(f"Active user: ID={user.id}, Name={user.name}, Role={user.role}")
+    
+    total_students = students_query.count()
+    print(f"Final student count: {total_students}")
     
     # Count active quizzes and assignments
     total_quizzes = db.query(Quiz).filter(
@@ -63,6 +139,11 @@ def get_teacher_overview(
     
     # Get subject breakdown
     subject_breakdown = get_subject_breakdown(current_teacher.id, db)
+    
+    print(f"=== DASHBOARD SUMMARY ===")
+    print(f"Total students: {total_students}")
+    print(f"Total quizzes: {total_quizzes}")
+    print(f"Total assignments: {total_assignments}")
     
     return {
         "total_students": total_students,
