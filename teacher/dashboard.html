@@ -242,18 +242,39 @@
 
         async function loadOverview() {
             try {
+                console.log('Loading teacher dashboard overview...');
+                console.log('API URL:', `${API_BASE_URL}/dashboard/teacher/overview`);
+                console.log('Token:', localStorage.getItem('token') ? 'Present' : 'Missing');
+                
                 const response = await fetch(`${API_BASE_URL}/dashboard/teacher/overview`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Dashboard data received:', data);
+                    
                     document.getElementById('totalStudents').textContent = data.total_students;
                     document.getElementById('totalQuizzes').textContent = data.total_quizzes;
                     document.getElementById('totalAssignments').textContent = data.total_assignments;
                     document.getElementById('avgPerformance').textContent = data.average_performance + '%';
+                    
+                    console.log('Dashboard updated with data:', {
+                        total_students: data.total_students,
+                        total_quizzes: data.total_quizzes,
+                        total_assignments: data.total_assignments,
+                        average_performance: data.average_performance
+                    });
+                } else {
+                    console.error('Dashboard API error:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading overview:', error);
             }
         }
 
