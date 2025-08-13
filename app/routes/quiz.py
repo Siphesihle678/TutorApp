@@ -207,93 +207,108 @@ def submit_quiz(
     db: Session = Depends(get_db)
 ):
     """Submit quiz answers and get results"""
-    # Get active attempt
-    attempt = db.query(QuizAttempt).filter(
-        QuizAttempt.quiz_id == quiz_id,
-        QuizAttempt.student_id == current_student.id,
-        QuizAttempt.completed_at == None
-    ).first()
-    
-    if not attempt:
-        raise HTTPException(status_code=404, detail="No active quiz attempt found")
-    
-    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
-    if not quiz:
-        raise HTTPException(status_code=404, detail="Quiz not found")
-    
-    total_score = 0
-    total_points = 0
-    
-    # Process each submission
-    for submission_data in submissions:
-        question = db.query(Question).filter(Question.id == submission_data.question_id).first()
-        if not question:
-            continue
+    try:
+        # Get active attempt
+        attempt = db.query(QuizAttempt).filter(
+            QuizAttempt.quiz_id == quiz_id,
+            QuizAttempt.student_id == current_student.id,
+            QuizAttempt.completed_at == None
+        ).first()
         
-        # Check if answer is correct
-        is_correct = False
-        points_earned = 0
+        if not attempt:
+            raise HTTPException(status_code=404, detail="No active quiz attempt found")
         
-        if question.question_type == QuestionType.MULTIPLE_CHOICE:
-            is_correct = submission_data.answer.lower().strip() == question.correct_answer.lower().strip()
-        elif question.question_type == QuestionType.TRUE_FALSE:
-            is_correct = submission_data.answer.lower().strip() == question.correct_answer.lower().strip()
-        elif question.question_type == QuestionType.SHORT_ANSWER:
-            # For short answer, check for partial matches
-            student_answer = submission_data.answer.lower().strip()
-            correct_answer = question.correct_answer.lower().strip()
-            is_correct = student_answer == correct_answer
+        quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+        if not quiz:
+            raise HTTPException(status_code=404, detail="Quiz not found")
         
-        if is_correct:
-            points_earned = question.points
+        total_score = 0
+        total_points = 0
         
-        # Create submission record
-        submission = QuizSubmission(
-            question_id=submission_data.question_id,
-            attempt_id=attempt.id,
-            answer=submission_data.answer,
-            is_correct=is_correct,
-            points_earned=points_earned
+        # Process each submission
+        for submission_data in submissions:
+            question = db.query(Question).filter(Question.id == submission_data.question_id).first()
+            if not question:
+                continue
+            
+            # Check if answer is correct
+            is_correct = False
+            points_earned = 0
+            
+            if question.question_type == QuestionType.MULTIPLE_CHOICE:
+                is_correct = submission_data.answer.lower().strip() == question.correct_answer.lower().strip()
+            elif question.question_type == QuestionType.TRUE_FALSE:
+                is_correct = submission_data.answer.lower().strip() == question.correct_answer.lower().strip()
+            elif question.question_type == QuestionType.SHORT_ANSWER:
+                # For short answer, check for partial matches
+                student_answer = submission_data.answer.lower().strip()
+                correct_answer = question.correct_answer.lower().strip()
+                is_correct = student_answer == correct_answer
+            
+            if is_correct:
+                points_earned = question.points
+            
+            # Create submission record
+            submission = QuizSubmission(
+                question_id=submission_data.question_id,
+                attempt_id=attempt.id,
+                answer=submission_data.answer,
+                is_correct=is_correct,
+                points_earned=points_earned
+            )
+            db.add(submission)
+            
+            total_score += points_earned
+            total_points += question.points
+        
+        # Calculate final score and percentage
+        percentage = (total_score / total_points * 100) if total_points > 0 else 0
+        is_passed = percentage >= quiz.passing_score
+        
+        # Update attempt
+        attempt.completed_at = datetime.utcnow()
+        attempt.score = total_score
+        attempt.is_passed = is_passed
+        attempt.time_taken = int((attempt.completed_at - attempt.started_at).total_seconds())
+        
+        # Create performance record
+        performance_record = PerformanceRecord(
+            student_id=current_student.id,
+            subject=quiz.subject,
+            assessment_type="quiz",
+            assessment_id=quiz.id,
+            score=total_score,
+            max_score=total_points,
+            percentage=percentage,
+            strengths=[],
+            weaknesses=[],
+            recommendations=f"Keep practicing {quiz.subject} concepts." if is_passed else f"Review {quiz.subject} fundamentals."
         )
-        db.add(submission)
+        db.add(performance_record)
         
-        total_score += points_earned
-        total_points += question.points
-    
-    # Calculate final score and percentage
-    percentage = (total_score / total_points * 100) if total_points > 0 else 0
-    is_passed = percentage >= quiz.passing_score
-    
-    # Update attempt
-    attempt.completed_at = datetime.utcnow()
-    attempt.score = total_score
-    attempt.is_passed = is_passed
-    attempt.time_taken = int((attempt.completed_at - attempt.started_at).total_seconds())
-    
-    # Create performance record
-    performance_record = PerformanceRecord(
-        student_id=current_student.id,
-        subject=quiz.subject,
-        assessment_type="quiz",
-        assessment_id=quiz.id,
-        score=total_score,
-        max_score=total_points,
-        percentage=percentage,
-        strengths=[],
-        weaknesses=[],
-        recommendations=f"Keep practicing {quiz.subject} concepts." if is_passed else f"Review {quiz.subject} fundamentals."
-    )
-    db.add(performance_record)
-    
-    db.commit()
-    
-    return {
-        "score": total_score,
-        "max_score": total_points,
-        "percentage": round(percentage, 2),
-        "is_passed": is_passed,
-        "time_taken": attempt.time_taken
-    }
+        db.commit()
+        
+        return {
+            "score": total_score,
+            "max_score": total_points,
+            "percentage": round(percentage, 2),
+            "is_passed": is_passed,
+            "time_taken": attempt.time_taken
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they are already properly formatted
+        raise
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error in quiz submission: {str(e)}")
+        # Rollback any database changes
+        db.rollback()
+        # Return a proper JSON error response
+        raise HTTPException(
+            status_code=500, 
+            detail="An error occurred while processing your quiz submission. Please try again."
+        )
 
 # ==================== QUIZ ANALYTICS ====================
 

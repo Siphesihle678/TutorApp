@@ -5,9 +5,10 @@ from pathlib import Path
 # Add the current directory to Python path
 sys.path.append(str(Path(__file__).parent))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from app.core.database import engine, Base
 from app.routes import auth, quiz, assignment, announcement, dashboard
 
@@ -35,6 +36,19 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Global exception handler to ensure JSON responses
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle all unhandled exceptions and return JSON responses"""
+    print(f"Unhandled exception: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal server error occurred. Please try again.",
+            "error_type": "internal_server_error"
+        }
+    )
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="."), name="static")
