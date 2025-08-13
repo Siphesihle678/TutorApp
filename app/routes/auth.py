@@ -19,13 +19,27 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
+    # Validate tutor assignment if provided
+    if user.tutor_id is not None:
+        tutor = db.query(User).filter(
+            User.id == user.tutor_id,
+            User.role == "teacher",
+            User.is_active == True
+        ).first()
+        if not tutor:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid tutor ID or tutor not found"
+            )
+    
     # Create new user
     hashed_password = get_password_hash(user.password)
     db_user = User(
         name=user.name,
         email=user.email,
         hashed_password=hashed_password,
-        role=user.role
+        role=user.role,
+        tutor_id=user.tutor_id
     )
     
     db.add(db_user)
@@ -82,6 +96,20 @@ def update_current_user(
         current_user.email = user_update.email
     if user_update.is_active is not None:
         current_user.is_active = user_update.is_active
+    if user_update.tutor_id is not None:
+        # Validate tutor assignment
+        if user_update.tutor_id != current_user.tutor_id:  # Only validate if changing
+            tutor = db.query(User).filter(
+                User.id == user_update.tutor_id,
+                User.role == "teacher",
+                User.is_active == True
+            ).first()
+            if not tutor:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid tutor ID or tutor not found"
+                )
+        current_user.tutor_id = user_update.tutor_id
     
     db.commit()
     db.refresh(current_user)

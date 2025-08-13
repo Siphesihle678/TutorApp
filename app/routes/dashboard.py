@@ -81,6 +81,124 @@ def debug_students(db: Session = Depends(get_db)):
             "error_type": type(e).__name__
         }
 
+# ==================== TUTOR MANAGEMENT ====================
+
+@router.get("/teacher/available-tutors")
+def get_available_tutors(db: Session = Depends(get_db)):
+    """Get list of available tutors for assignment"""
+    tutors = db.query(User).filter(
+        User.role == "teacher",
+        User.is_active == True
+    ).all()
+    
+    return [
+        {
+            "id": tutor.id,
+            "name": tutor.name,
+            "email": tutor.email,
+            "student_count": len(tutor.students) if tutor.students else 0
+        }
+        for tutor in tutors
+    ]
+
+@router.get("/teacher/my-students")
+def get_my_students(
+    current_teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    """Get list of students assigned to current teacher"""
+    students = db.query(User).filter(
+        User.role == "student",
+        User.tutor_id == current_teacher.id,
+        User.is_active == True
+    ).all()
+    
+    return [
+        {
+            "id": student.id,
+            "name": student.name,
+            "email": student.email,
+            "created_at": student.created_at,
+            "is_active": student.is_active
+        }
+        for student in students
+    ]
+
+@router.post("/teacher/assign-student/{student_id}")
+def assign_student_to_tutor(
+    student_id: int,
+    current_teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    """Assign a student to the current teacher"""
+    # Check if student exists and is not already assigned
+    student = db.query(User).filter(
+        User.id == student_id,
+        User.role == "student",
+        User.is_active == True
+    ).first()
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    if student.tutor_id == current_teacher.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Student is already assigned to you"
+        )
+    
+    # Update student's tutor assignment
+    student.tutor_id = current_teacher.id
+    db.commit()
+    db.refresh(student)
+    
+    return {
+        "message": f"Student {student.name} successfully assigned to you",
+        "student": {
+            "id": student.id,
+            "name": student.name,
+            "email": student.email
+        }
+    }
+
+@router.delete("/teacher/unassign-student/{student_id}")
+def unassign_student_from_tutor(
+    student_id: int,
+    current_teacher: User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    """Unassign a student from the current teacher"""
+    # Check if student exists and is assigned to current teacher
+    student = db.query(User).filter(
+        User.id == student_id,
+        User.role == "student",
+        User.tutor_id == current_teacher.id,
+        User.is_active == True
+    ).first()
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found or not assigned to you"
+        )
+    
+    # Remove tutor assignment
+    student.tutor_id = None
+    db.commit()
+    db.refresh(student)
+    
+    return {
+        "message": f"Student {student.name} successfully unassigned from you",
+        "student": {
+            "id": student.id,
+            "name": student.name,
+            "email": student.email
+        }
+    }
+
 # ==================== TEACHER DASHBOARD ====================
 
 @router.get("/teacher/overview", response_model=TeacherDashboard)
@@ -101,23 +219,32 @@ def get_teacher_overview(
         for user in all_users:
             print(f"User: ID={user.id}, Name={user.name}, Email={user.email}, Role={user.role}, Active={user.is_active}")
         
-        # Count students with debugging
+        # Count students with debugging - filter by tutor
         students_query = db.query(User).filter(
             User.role == "student", 
-            User.is_active == True
+            User.is_active == True,
+            User.tutor_id == current_teacher.id
         )
-        print(f"Student query filter: role='student' AND is_active=True")
+        print(f"Student query filter: role='student' AND is_active=True AND tutor_id={current_teacher.id}")
         
         # Check each condition separately
         all_students = db.query(User).filter(User.role == "student").all()
         print(f"Users with role='student': {len(all_students)}")
         for student in all_students:
-            print(f"Student: ID={student.id}, Name={student.name}, Active={student.is_active}")
+            print(f"Student: ID={student.id}, Name={student.name}, Active={student.is_active}, Tutor ID={student.tutor_id}")
         
         active_students = db.query(User).filter(User.is_active == True).all()
         print(f"Users with is_active=True: {len(active_students)}")
         for user in active_students:
             print(f"Active user: ID={user.id}, Name={user.name}, Role={user.role}")
+        
+        my_students = db.query(User).filter(
+            User.role == "student",
+            User.tutor_id == current_teacher.id
+        ).all()
+        print(f"My students: {len(my_students)}")
+        for student in my_students:
+            print(f"My student: ID={student.id}, Name={student.name}, Active={student.is_active}")
         
         total_students = students_query.count()
         print(f"Final student count: {total_students}")
@@ -201,7 +328,11 @@ def get_student_performances(
     subject: Optional[str] = None
 ):
     """Get detailed student performance data"""
-    query = db.query(User).filter(User.role == "student", User.is_active == True)
+    query = db.query(User).filter(
+        User.role == "student", 
+        User.is_active == True,
+        User.tutor_id == current_teacher.id
+    )
     
     if subject:
         # Filter by subject if specified
@@ -436,8 +567,17 @@ def get_leaderboard(
     limit: int = 10
 ):
     """Get class leaderboard"""
-    # Get all students with their performance
-    students = db.query(User).filter(User.role == "student", User.is_active == True).all()
+    # Get students based on user role
+    if current_user.role == "teacher":
+        # Teachers see only their students
+        students = db.query(User).filter(
+            User.role == "student", 
+            User.is_active == True,
+            User.tutor_id == current_user.id
+        ).all()
+    else:
+        # Students see all students (or could be filtered by their tutor's students)
+        students = db.query(User).filter(User.role == "student", User.is_active == True).all()
     
     leaderboard_entries = []
     for student in students:
