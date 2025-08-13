@@ -89,81 +89,92 @@ def get_teacher_overview(
     db: Session = Depends(get_db)
 ):
     """Get comprehensive teacher dashboard overview"""
-    # Debug: Check all users in the database
-    all_users = db.query(User).all()
-    print(f"=== TEACHER DASHBOARD DEBUG ===")
-    print(f"Total users in database: {len(all_users)}")
-    for user in all_users:
-        print(f"User: ID={user.id}, Name={user.name}, Email={user.email}, Role={user.role}, Active={user.is_active}")
-    
-    # Count students with debugging
-    students_query = db.query(User).filter(
-        User.role == "student", 
-        User.is_active == True
-    )
-    print(f"Student query filter: role='student' AND is_active=True")
-    
-    # Check each condition separately
-    all_students = db.query(User).filter(User.role == "student").all()
-    print(f"Users with role='student': {len(all_students)}")
-    for student in all_students:
-        print(f"Student: ID={student.id}, Name={student.name}, Active={student.is_active}")
-    
-    active_students = db.query(User).filter(User.is_active == True).all()
-    print(f"Users with is_active=True: {len(active_students)}")
-    for user in active_students:
-        print(f"Active user: ID={user.id}, Name={user.name}, Role={user.role}")
-    
-    total_students = students_query.count()
-    print(f"Final student count: {total_students}")
-    
-    # Count active quizzes and assignments
-    total_quizzes = db.query(Quiz).filter(
-        Quiz.creator_id == current_teacher.id,
-        Quiz.is_active == True
-    ).count()
-    
-    total_assignments = db.query(Assignment).filter(
-        Assignment.creator_id == current_teacher.id,
-        Assignment.is_active == True
-    ).count()
-    
-    # Count recent submissions
-    recent_quiz_attempts = db.query(QuizAttempt).join(Quiz).filter(
-        Quiz.creator_id == current_teacher.id,
-        QuizAttempt.completed_at != None
-    ).count()
-    
-    recent_assignment_submissions = db.query(AssignmentSubmission).join(Assignment).filter(
-        Assignment.creator_id == current_teacher.id
-    ).count()
-    
-    # Calculate average performance
-    avg_performance = db.query(func.avg(PerformanceRecord.percentage)).join(Quiz).filter(
-        Quiz.creator_id == current_teacher.id
-    ).scalar() or 0
-    
-    # Get recent activity
-    recent_activity = get_recent_activity(current_teacher.id, db)
-    
-    # Get subject breakdown
-    subject_breakdown = get_subject_breakdown(current_teacher.id, db)
-    
-    print(f"=== DASHBOARD SUMMARY ===")
-    print(f"Total students: {total_students}")
-    print(f"Total quizzes: {total_quizzes}")
-    print(f"Total assignments: {total_assignments}")
-    
-    return {
-        "total_students": total_students,
-        "total_quizzes": total_quizzes,
-        "total_assignments": total_assignments,
-        "recent_quiz_attempts": recent_quiz_attempts,
-        "recent_assignment_submissions": recent_assignment_submissions,
-        "average_performance": round(avg_performance, 2),
-        "recent_activity": recent_activity,
-        "subject_breakdown": subject_breakdown
-    }
+    try:
+        print(f"=== TEACHER DASHBOARD DEBUG ===")
+        print(f"Teacher ID: {current_teacher.id}")
+        print(f"Teacher Name: {current_teacher.name}")
+        print(f"Teacher Role: {current_teacher.role}")
+        
+        # Debug: Check all users in the database
+        all_users = db.query(User).all()
+        print(f"Total users in database: {len(all_users)}")
+        for user in all_users:
+            print(f"User: ID={user.id}, Name={user.name}, Email={user.email}, Role={user.role}, Active={user.is_active}")
+        
+        # Count students with debugging
+        students_query = db.query(User).filter(
+            User.role == "student", 
+            User.is_active == True
+        )
+        print(f"Student query filter: role='student' AND is_active=True")
+        
+        # Check each condition separately
+        all_students = db.query(User).filter(User.role == "student").all()
+        print(f"Users with role='student': {len(all_students)}")
+        for student in all_students:
+            print(f"Student: ID={student.id}, Name={student.name}, Active={student.is_active}")
+        
+        active_students = db.query(User).filter(User.is_active == True).all()
+        print(f"Users with is_active=True: {len(active_students)}")
+        for user in active_students:
+            print(f"Active user: ID={user.id}, Name={user.name}, Role={user.role}")
+        
+        total_students = students_query.count()
+        print(f"Final student count: {total_students}")
+        
+        # Count active quizzes and assignments
+        total_quizzes = db.query(Quiz).filter(
+            Quiz.creator_id == current_teacher.id,
+            Quiz.is_active == True
+        ).count()
+        
+        total_assignments = db.query(Assignment).filter(
+            Assignment.creator_id == current_teacher.id,
+            Assignment.is_active == True
+        ).count()
+        
+        # Count recent submissions
+        recent_quiz_attempts = db.query(QuizAttempt).join(Quiz).filter(
+            Quiz.creator_id == current_teacher.id,
+            QuizAttempt.completed_at != None
+        ).count()
+        
+        recent_assignment_submissions = db.query(AssignmentSubmission).join(Assignment).filter(
+            Assignment.creator_id == current_teacher.id
+        ).count()
+        
+        # Calculate average performance
+        avg_performance = db.query(func.avg(PerformanceRecord.percentage)).join(Quiz).filter(
+            Quiz.creator_id == current_teacher.id
+        ).scalar() or 0
+        
+        # Simplified response without helper functions
+        result = {
+            "total_students": total_students,
+            "total_quizzes": total_quizzes,
+            "total_assignments": total_assignments,
+            "recent_quiz_attempts": recent_quiz_attempts,
+            "recent_assignment_submissions": recent_assignment_submissions,
+            "average_performance": round(avg_performance, 2),
+            "recent_activity": [],  # Simplified - empty array
+            "subject_breakdown": {}  # Simplified - empty object
+        }
+        
+        print(f"=== DASHBOARD SUMMARY ===")
+        print(f"Total students: {total_students}")
+        print(f"Total quizzes: {total_quizzes}")
+        print(f"Total assignments: {total_assignments}")
+        print(f"Result: {result}")
+        
+        return result
+        
+    except Exception as e:
+        print(f"=== TEACHER DASHBOARD ERROR ===")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        raise
 
 @router.get("/teacher/students", response_model=List[StudentPerformance])
 def get_student_performances(
