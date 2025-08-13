@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from ..core.database import get_db
 from ..core.auth import get_current_teacher, get_current_user, get_current_student
 from ..models.user import User
@@ -327,7 +327,21 @@ def submit_quiz(
         attempt.completed_at = datetime.utcnow()
         attempt.score = total_score
         attempt.is_passed = is_passed
-        attempt.time_taken = int((attempt.completed_at - attempt.started_at).total_seconds())
+        
+        # Fix timezone issue by ensuring both datetimes are timezone-aware
+        if attempt.started_at.tzinfo is None:
+            # If started_at is naive, make it timezone-aware
+            started_at_aware = attempt.started_at.replace(tzinfo=timezone.utc)
+        else:
+            started_at_aware = attempt.started_at
+            
+        if attempt.completed_at.tzinfo is None:
+            # If completed_at is naive, make it timezone-aware
+            completed_at_aware = attempt.completed_at.replace(tzinfo=timezone.utc)
+        else:
+            completed_at_aware = attempt.completed_at
+        
+        attempt.time_taken = int((completed_at_aware - started_at_aware).total_seconds())
         
         # Step 6: Add all submissions to database
         print("Step 6: Adding submissions to database...")
