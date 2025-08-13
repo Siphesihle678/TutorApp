@@ -20,6 +20,15 @@ router = APIRouter()
 
 # ==================== DEBUG ENDPOINTS ====================
 
+@router.get("/test")
+def test_dashboard():
+    """Simple test endpoint to verify dashboard routing"""
+    return {
+        "message": "Dashboard router is working!",
+        "status": "success",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 @router.get("/debug/students")
 def debug_students(db: Session = Depends(get_db)):
     """Debug endpoint to check student data"""
