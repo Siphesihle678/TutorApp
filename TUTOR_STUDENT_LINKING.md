@@ -2,14 +2,29 @@
 
 ## Overview
 
-The TutorApp now includes a comprehensive tutor-student linking system that ensures every student account is automatically associated with their assigned tutor upon signup. This system provides tutors with the ability to see and manage only their own students, creating a secure and organized learning environment.
+The TutorApp now includes a comprehensive tutor-student linking system using **Tutor Codes**. When a tutor signs up, they receive a unique 6-character code that they can share with their students. Students then use this code during registration to automatically link to their assigned tutor.
+
+## How It Works
+
+### 🔑 **Tutor Code System**
+1. **Tutor signs up** → Gets a unique 6-character Tutor Code (e.g., "ABC123")
+2. **Tutor shares their code** with students via email, WhatsApp, etc.
+3. **Student signs up** → Enters the Tutor Code → Automatically linked to that tutor
+4. **Tutor dashboard** → Shows only students who used their code
+
+### 🎯 **Benefits**
+- **Simple & User-Friendly**: No complex IDs, just easy-to-remember codes
+- **Secure**: Each code is unique and validated
+- **Automatic**: No manual assignment needed
+- **Scalable**: Works for any number of tutors and students
 
 ## Features
 
-### 🔗 **Automatic Student-Tutor Association**
-- Students can be assigned to a tutor during registration
-- Existing students are automatically assigned to the first available teacher
-- Tutors can only view and manage their assigned students
+### 🔑 **Tutor Code System**
+- Tutors receive unique 6-character codes upon registration
+- Students enter tutor codes during signup for automatic linking
+- Real-time validation of tutor codes
+- Tutors can view and share their codes easily
 
 ### 👨‍🏫 **Tutor Management Dashboard**
 - View all assigned students
@@ -23,10 +38,11 @@ The TutorApp now includes a comprehensive tutor-student linking system that ensu
 
 ## Database Changes
 
-### New Column Added
+### New Columns Added
 - `tutor_id` (Integer, nullable) - Links students to their assigned tutor
+- `tutor_code` (String, unique) - Unique 6-character code for tutor identification
 - Foreign key constraint to `users.id`
-- Index for better query performance
+- Indexes for better query performance
 
 ### Relationships
 - `User.tutor` - Student's assigned tutor
@@ -37,9 +53,15 @@ The TutorApp now includes a comprehensive tutor-student linking system that ensu
 ### Authentication & Registration
 ```
 POST /api/auth/register
-- Now accepts optional tutor_id parameter
-- Validates tutor exists and is active
-- Automatically links student to tutor
+- Teachers: Automatically generates unique tutor_code
+- Students: Accepts tutor_code parameter for automatic linking
+- Validates tutor code exists and is active
+
+GET /api/auth/validate-tutor-code/{tutor_code}
+- Validates tutor code and returns tutor information
+
+GET /api/auth/me/tutor-code
+- Teachers: Get their unique tutor code for sharing
 
 PUT /api/auth/me
 - Allows updating tutor assignment
@@ -77,7 +99,29 @@ GET /api/dashboard/leaderboard
 
 ## Usage Examples
 
-### Student Registration with Tutor Assignment
+### Teacher Registration (Gets Tutor Code)
+```json
+POST /api/auth/register
+{
+    "name": "Dr. Smith",
+    "email": "smith@example.com",
+    "password": "securepassword",
+    "role": "teacher"
+}
+
+Response:
+{
+    "id": 1,
+    "name": "Dr. Smith",
+    "email": "smith@example.com",
+    "role": "teacher",
+    "tutor_code": "ABC123",
+    "is_active": true,
+    "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### Student Registration with Tutor Code
 ```json
 POST /api/auth/register
 {
@@ -85,23 +129,33 @@ POST /api/auth/register
     "email": "john@example.com",
     "password": "securepassword",
     "role": "student",
-    "tutor_id": 1
+    "tutor_code": "ABC123"
 }
 ```
 
-### Assign Student to Tutor
+### Validate Tutor Code
 ```json
-POST /api/dashboard/teacher/assign-student/5
+GET /api/auth/validate-tutor-code/ABC123
+
+Response:
+{
+    "valid": true,
+    "tutor_name": "Dr. Smith",
+    "tutor_email": "smith@example.com",
+    "student_count": 5
+}
+```
+
+### Get Teacher's Tutor Code
+```json
+GET /api/auth/me/tutor-code
 Authorization: Bearer <teacher_token>
 
 Response:
 {
-    "message": "Student John Doe successfully assigned to you",
-    "student": {
-        "id": 5,
-        "name": "John Doe",
-        "email": "john@example.com"
-    }
+    "tutor_code": "ABC123",
+    "name": "Dr. Smith",
+    "email": "smith@example.com"
 }
 ```
 

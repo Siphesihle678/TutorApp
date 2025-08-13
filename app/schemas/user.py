@@ -11,6 +11,7 @@ class UserCreate(UserBase):
     password: str
     role: UserRole = UserRole.STUDENT
     tutor_id: Optional[int] = None  # Optional tutor assignment during signup
+    tutor_code: Optional[str] = None  # Tutor code for student signup
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -26,6 +27,7 @@ class UserRead(UserBase):
     id: int
     role: UserRole
     tutor_id: Optional[int] = None
+    tutor_code: Optional[str] = None
     is_active: bool
     created_at: datetime
     

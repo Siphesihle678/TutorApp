@@ -14,8 +14,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.database import DATABASE_URL
 
-def migrate_add_tutor_id():
-    """Add tutor_id column to users table"""
+def migrate_add_tutor_columns():
+    """Add tutor_id and tutor_code columns to users table"""
     engine = create_engine(DATABASE_URL)
     
     with engine.connect() as connection:
@@ -27,37 +27,112 @@ def migrate_add_tutor_id():
                 WHERE table_name = 'users' AND column_name = 'tutor_id'
             """))
             
-            if result.fetchone():
+            if not result.fetchone():
+                # Add tutor_id column
+                connection.execute(text("""
+                    ALTER TABLE users 
+                    ADD COLUMN tutor_id INTEGER
+                """))
+                
+                # Create index on tutor_id for better performance
+                connection.execute(text("""
+                    CREATE INDEX IF NOT EXISTS ix_users_tutor_id 
+                    ON users (tutor_id)
+                """))
+                
+                # Add foreign key constraint
+                connection.execute(text("""
+                    ALTER TABLE users 
+                    ADD CONSTRAINT fk_users_tutor_id 
+                    FOREIGN KEY (tutor_id) REFERENCES users (id)
+                """))
+                
+                print("✅ Successfully added tutor_id column to users table")
+                print("✅ Created index on tutor_id")
+                print("✅ Added foreign key constraint")
+            else:
                 print("✅ tutor_id column already exists in users table")
-                return
             
-            # Add tutor_id column
-            connection.execute(text("""
-                ALTER TABLE users 
-                ADD COLUMN tutor_id INTEGER
+            # Check if tutor_code column already exists
+            result = connection.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'users' AND column_name = 'tutor_code'
             """))
             
-            # Create index on tutor_id for better performance
-            connection.execute(text("""
-                CREATE INDEX IF NOT EXISTS ix_users_tutor_id 
-                ON users (tutor_id)
-            """))
-            
-            # Add foreign key constraint
-            connection.execute(text("""
-                ALTER TABLE users 
-                ADD CONSTRAINT fk_users_tutor_id 
-                FOREIGN KEY (tutor_id) REFERENCES users (id)
-            """))
+            if not result.fetchone():
+                # Add tutor_code column
+                connection.execute(text("""
+                    ALTER TABLE users 
+                    ADD COLUMN tutor_code VARCHAR(10) UNIQUE
+                """))
+                
+                # Create index on tutor_code for better performance
+                connection.execute(text("""
+                    CREATE INDEX IF NOT EXISTS ix_users_tutor_code 
+                    ON users (tutor_code)
+                """))
+                
+                print("✅ Successfully added tutor_code column to users table")
+                print("✅ Created index on tutor_code")
+            else:
+                print("✅ tutor_code column already exists in users table")
             
             connection.commit()
-            print("✅ Successfully added tutor_id column to users table")
-            print("✅ Created index on tutor_id")
-            print("✅ Added foreign key constraint")
             
         except Exception as e:
             print(f"❌ Error during migration: {e}")
             connection.rollback()
+            raise
+
+def assign_tutor_codes():
+    """Assign tutor codes to existing teachers"""
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    
+    with SessionLocal() as db:
+        try:
+            # Get teachers without tutor codes
+            teachers_without_codes = db.execute(text("""
+                SELECT id, name, email 
+                FROM users 
+                WHERE role = 'teacher' AND tutor_code IS NULL AND is_active = true
+            """)).fetchall()
+            
+            if not teachers_without_codes:
+                print("✅ All teachers already have tutor codes")
+                return
+            
+            # Import the utility function
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from app.core.utils import generate_unique_tutor_code
+            
+            assigned_count = 0
+            for teacher in teachers_without_codes:
+                try:
+                    # Generate unique tutor code
+                    tutor_code = generate_unique_tutor_code(db)
+                    
+                    # Update teacher with tutor code
+                    db.execute(text("""
+                        UPDATE users 
+                        SET tutor_code = :tutor_code 
+                        WHERE id = :teacher_id
+                    """), {"tutor_code": tutor_code, "teacher_id": teacher.id})
+                    
+                    assigned_count += 1
+                    print(f"✅ Assigned tutor code '{tutor_code}' to teacher: {teacher.name} ({teacher.email})")
+                    
+                except Exception as e:
+                    print(f"❌ Error assigning tutor code to {teacher.name}: {e}")
+                    continue
+            
+            db.commit()
+            print(f"✅ Successfully assigned tutor codes to {assigned_count} teachers")
+            
+        except Exception as e:
+            print(f"❌ Error assigning tutor codes: {e}")
+            db.rollback()
             raise
 
 def assign_default_tutor():
@@ -110,7 +185,8 @@ if __name__ == "__main__":
     print("🚀 Starting database migration for tutor-student linking...")
     
     try:
-        migrate_add_tutor_id()
+        migrate_add_tutor_columns()
+        assign_tutor_codes()
         assign_default_tutor()
         print("🎉 Migration completed successfully!")
         

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.security import get_password_hash, verify_password, create_access_token
 from ..core.auth import get_current_user
+from ..core.utils import generate_unique_tutor_code, find_tutor_by_code
 from ..models.user import User
 from ..schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate
 
@@ -19,18 +20,36 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
-    # Validate tutor assignment if provided
-    if user.tutor_id is not None:
-        tutor = db.query(User).filter(
-            User.id == user.tutor_id,
-            User.role == "teacher",
-            User.is_active == True
-        ).first()
-        if not tutor:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid tutor ID or tutor not found"
-            )
+    # Handle tutor registration
+    if user.role == "teacher":
+        # Generate unique tutor code for new teachers
+        tutor_code = generate_unique_tutor_code(db)
+        tutor_id = None
+    else:
+        # Handle student registration with tutor code
+        tutor_id = None
+        if user.tutor_code:
+            # Find tutor by code
+            tutor = find_tutor_by_code(db, user.tutor_code)
+            if not tutor:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid tutor code. Please check with your tutor."
+                )
+            tutor_id = tutor.id
+        elif user.tutor_id:
+            # Fallback to tutor_id if provided
+            tutor = db.query(User).filter(
+                User.id == user.tutor_id,
+                User.role == "teacher",
+                User.is_active == True
+            ).first()
+            if not tutor:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid tutor ID or tutor not found"
+                )
+            tutor_id = user.tutor_id
     
     # Create new user
     hashed_password = get_password_hash(user.password)
@@ -39,7 +58,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         hashed_password=hashed_password,
         role=user.role,
-        tutor_id=user.tutor_id
+        tutor_id=tutor_id,
+        tutor_code=tutor_code if user.role == "teacher" else None
     )
     
     db.add(db_user)
@@ -67,6 +87,45 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/validate-tutor-code/{tutor_code}")
+def validate_tutor_code(tutor_code: str, db: Session = Depends(get_db)):
+    """Validate a tutor code and return tutor information"""
+    tutor = find_tutor_by_code(db, tutor_code)
+    
+    if not tutor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invalid tutor code. Please check with your tutor."
+        )
+    
+    return {
+        "valid": True,
+        "tutor_name": tutor.name,
+        "tutor_email": tutor.email,
+        "student_count": len(tutor.students) if tutor.students else 0
+    }
+
+@router.get("/me/tutor-code")
+def get_my_tutor_code(current_user: User = Depends(get_current_user)):
+    """Get current user's tutor code (for teachers only)"""
+    if current_user.role != "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access tutor codes"
+        )
+    
+    if not current_user.tutor_code:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tutor code found for this account"
+        )
+    
+    return {
+        "tutor_code": current_user.tutor_code,
+        "name": current_user.name,
+        "email": current_user.email
+    }
 
 @router.get("/me", response_model=UserRead)
 def get_current_user_info(current_user: User = Depends(get_current_user)):
