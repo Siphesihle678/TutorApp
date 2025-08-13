@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from app.core.database import engine, Base
-from app.routes import auth, quiz, assignment, announcement, dashboard
+from app.routes import auth, quiz, assignment, announcement, dashboard, subject
 
 # Create database tables (with error handling for Railway deployment)
 try:
@@ -59,6 +59,7 @@ app.include_router(quiz.router, prefix="/api/quizzes", tags=["Quizzes"])
 app.include_router(assignment.router, prefix="/api/assignments", tags=["Assignments"])
 app.include_router(announcement.router, prefix="/api/announcements", tags=["Announcements"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(subject.router, prefix="/api", tags=["Subjects & Grades"])
 
 
 from fastapi.responses import FileResponse

@@ -30,5 +30,9 @@ class User(Base):
     announcements_created = relationship("Announcement", back_populates="creator")
     performance_records = relationship("PerformanceRecord", back_populates="student")
     
+    # Subject/Grade relationships
+    subjects_created = relationship("Subject", back_populates="tutor")
+    enrolled_grades = relationship("StudentGrade", back_populates="student")
+    
     # Tutor-Student relationships
     tutor = relationship("User", foreign_keys=[tutor_id], remote_side=[id], backref="students")
