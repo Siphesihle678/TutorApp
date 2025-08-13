@@ -133,20 +133,38 @@ def get_teacher_overview(
             Assignment.is_active == True
         ).count()
         
-        # Count recent submissions
-        recent_quiz_attempts = db.query(QuizAttempt).join(Quiz).filter(
-            Quiz.creator_id == current_teacher.id,
-            QuizAttempt.completed_at != None
-        ).count()
+        # Count recent submissions - simplified without joins
+        try:
+            recent_quiz_attempts = db.query(QuizAttempt).filter(
+                QuizAttempt.quiz_id.in_(
+                    db.query(Quiz.id).filter(Quiz.creator_id == current_teacher.id)
+                ),
+                QuizAttempt.completed_at != None
+            ).count()
+        except Exception as quiz_error:
+            print(f"Quiz attempts calculation error: {quiz_error}")
+            recent_quiz_attempts = 0
+            
+        try:
+            recent_assignment_submissions = db.query(AssignmentSubmission).filter(
+                AssignmentSubmission.assignment_id.in_(
+                    db.query(Assignment.id).filter(Assignment.creator_id == current_teacher.id)
+                )
+            ).count()
+        except Exception as assign_error:
+            print(f"Assignment submissions calculation error: {assign_error}")
+            recent_assignment_submissions = 0
         
-        recent_assignment_submissions = db.query(AssignmentSubmission).join(Assignment).filter(
-            Assignment.creator_id == current_teacher.id
-        ).count()
-        
-        # Calculate average performance
-        avg_performance = db.query(func.avg(PerformanceRecord.percentage)).join(Quiz).filter(
-            Quiz.creator_id == current_teacher.id
-        ).scalar() or 0
+        # Calculate average performance - simplified without join
+        try:
+            avg_performance = db.query(func.avg(PerformanceRecord.percentage)).filter(
+                PerformanceRecord.quiz_id.in_(
+                    db.query(Quiz.id).filter(Quiz.creator_id == current_teacher.id)
+                )
+            ).scalar() or 0
+        except Exception as perf_error:
+            print(f"Performance calculation error: {perf_error}")
+            avg_performance = 0
         
         # Simplified response without helper functions
         result = {
