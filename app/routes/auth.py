@@ -12,61 +12,101 @@ router = APIRouter()
 @router.post("/register", response_model=UserRead)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
-    # Check if user already exists
-    existing_user = db.query(User).filter(User.email == user.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+    try:
+        print(f"=== REGISTRATION ATTEMPT ===")
+        print(f"Name: {user.name}")
+        print(f"Email: {user.email}")
+        print(f"Role: {user.role}")
+        
+        # Check if user already exists
+        existing_user = db.query(User).filter(User.email == user.email).first()
+        if existing_user:
+            print("ERROR: Email already registered")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Handle tutor registration
+        tutor_code = None
+        tutor_id = None
+        
+        if user.role == "teacher":
+            # Generate unique tutor code for new teachers
+            print("Step 1: Generating tutor code for teacher...")
+            tutor_code = generate_unique_tutor_code(db)
+            tutor_id = None
+        else:
+            # Handle student registration with tutor code
+            print("Step 1: Processing student registration...")
+            tutor_id = None
+            if user.tutor_code:
+                # Find tutor by code
+                print(f"Step 2: Looking up tutor by code: {user.tutor_code}")
+                tutor = find_tutor_by_code(db, user.tutor_code)
+                if not tutor:
+                    print("ERROR: Invalid tutor code")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid tutor code. Please check with your tutor."
+                    )
+                tutor_id = tutor.id
+                print(f"Step 3: Found tutor with ID: {tutor_id}")
+            elif user.tutor_id:
+                # Fallback to tutor_id if provided
+                print(f"Step 2: Looking up tutor by ID: {user.tutor_id}")
+                tutor = db.query(User).filter(
+                    User.id == user.tutor_id,
+                    User.role == "teacher",
+                    User.is_active == True
+                ).first()
+                if not tutor:
+                    print("ERROR: Invalid tutor ID")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid tutor ID or tutor not found"
+                    )
+                tutor_id = user.tutor_id
+                print(f"Step 3: Found tutor with ID: {tutor_id}")
+            else:
+                print("Step 2: No tutor code or ID provided - student will be unassigned")
+        
+        # Create new user
+        print("Step 4: Creating user...")
+        hashed_password = get_password_hash(user.password)
+        db_user = User(
+            name=user.name,
+            email=user.email,
+            hashed_password=hashed_password,
+            role=user.role,
+            tutor_id=tutor_id,
+            tutor_code=tutor_code
         )
-    
-    # Handle tutor registration
-    if user.role == "teacher":
-        # Generate unique tutor code for new teachers
-        tutor_code = generate_unique_tutor_code(db)
-        tutor_id = None
-    else:
-        # Handle student registration with tutor code
-        tutor_id = None
-        if user.tutor_code:
-            # Find tutor by code
-            tutor = find_tutor_by_code(db, user.tutor_code)
-            if not tutor:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid tutor code. Please check with your tutor."
-                )
-            tutor_id = tutor.id
-        elif user.tutor_id:
-            # Fallback to tutor_id if provided
-            tutor = db.query(User).filter(
-                User.id == user.tutor_id,
-                User.role == "teacher",
-                User.is_active == True
-            ).first()
-            if not tutor:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid tutor ID or tutor not found"
-                )
-            tutor_id = user.tutor_id
-    
-    # Create new user
-    hashed_password = get_password_hash(user.password)
-    db_user = User(
-        name=user.name,
-        email=user.email,
-        hashed_password=hashed_password,
-        role=user.role,
-        tutor_id=tutor_id,
-        tutor_code=tutor_code if user.role == "teacher" else None
-    )
-    
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    
-    return db_user
+        
+        print("Step 5: Saving user to database...")
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        print("=== REGISTRATION SUCCESS ===")
+        return db_user
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        print(f"=== REGISTRATION ERROR ===")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        db.rollback()
+        
+        # Return a proper error response
+        raise HTTPException(
+            status_code=500,
+            detail="An internal server error occurred during registration. Please try again."
+        )
 
 @router.post("/login", response_model=Token)
 def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
