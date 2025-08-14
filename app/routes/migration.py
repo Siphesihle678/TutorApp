@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from ..core.database import get_db
+from ..core.database import get_db, engine
 from ..core.auth import get_current_user
 from ..models.user import User
 
@@ -266,5 +266,120 @@ def create_default_subjects(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create default subjects: {str(e)}"
+        )
+
+@router.post("/fix-schema")
+def fix_database_schema(db: Session = Depends(get_db)):
+    """Fix database schema by adding missing columns"""
+    try:
+        print("🔧 FIXING DATABASE SCHEMA")
+        
+        # Check if tutor_id column exists
+        result = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'tutor_id'
+        """))
+        
+        if result.fetchone():
+            print("✅ tutor_id column already exists")
+        else:
+            print("❌ tutor_id column missing - adding it...")
+            
+            # Add the tutor_id column
+            db.execute(text("""
+                ALTER TABLE users 
+                ADD COLUMN tutor_id INTEGER
+            """))
+            
+            # Create index on tutor_id
+            db.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_users_tutor_id 
+                ON users(tutor_id)
+            """))
+            
+            print("✅ tutor_id column added successfully")
+        
+        # Check if tutor_code column exists
+        result = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'tutor_code'
+        """))
+        
+        if result.fetchone():
+            print("✅ tutor_code column already exists")
+        else:
+            print("❌ tutor_code column missing - adding it...")
+            
+            # Add the tutor_code column
+            db.execute(text("""
+                ALTER TABLE users 
+                ADD COLUMN tutor_code VARCHAR
+            """))
+            
+            # Create index on tutor_code
+            db.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_users_tutor_code 
+                ON users(tutor_code)
+            """))
+            
+            print("✅ tutor_code column added successfully")
+        
+        # Commit the changes
+        db.commit()
+        print("✅ Database schema updated successfully")
+        
+        return {
+            "status": "success",
+            "message": "Database schema updated successfully",
+            "changes": [
+                "Added tutor_id column if missing",
+                "Added tutor_code column if missing",
+                "Created indexes for better performance"
+            ]
+        }
+        
+    except Exception as e:
+        print(f"❌ Database schema fix failed: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database schema fix failed: {str(e)}"
+        )
+
+@router.get("/schema-status")
+def check_schema_status(db: Session = Depends(get_db)):
+    """Check the current database schema status"""
+    try:
+        # Check if tutor_id column exists
+        result = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'tutor_id'
+        """))
+        tutor_id_exists = result.fetchone() is not None
+        
+        # Check if tutor_code column exists
+        result = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'tutor_code'
+        """))
+        tutor_code_exists = result.fetchone() is not None
+        
+        return {
+            "status": "success",
+            "schema_status": {
+                "tutor_id_column": "exists" if tutor_id_exists else "missing",
+                "tutor_code_column": "exists" if tutor_code_exists else "missing",
+                "needs_fix": not (tutor_id_exists and tutor_code_exists)
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Schema status check failed: {str(e)}"
         )
 
