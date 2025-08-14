@@ -71,22 +71,62 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     """Login user and return access token"""
-    user = db.query(User).filter(User.email == user_credentials.email).first()
-    if not user or not verify_password(user_credentials.password, user.hashed_password):
+    try:
+        print(f"=== LOGIN ATTEMPT ===")
+        print(f"Email: {user_credentials.email}")
+        
+        # Step 1: Find user
+        print("Step 1: Finding user...")
+        user = db.query(User).filter(User.email == user_credentials.email).first()
+        if not user:
+            print("ERROR: User not found")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Step 2: Verify password
+        print("Step 2: Verifying password...")
+        if not verify_password(user_credentials.password, user.hashed_password):
+            print("ERROR: Invalid password")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Step 3: Check if user is active
+        print("Step 3: Checking user status...")
+        if not user.is_active:
+            print("ERROR: User account is deactivated")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Account is deactivated"
+            )
+        
+        # Step 4: Create access token
+        print("Step 4: Creating access token...")
+        access_token = create_access_token(data={"sub": user.email})
+        
+        print("=== LOGIN SUCCESS ===")
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        print(f"=== LOGIN ERROR ===")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        
+        # Return a proper error response
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=500,
+            detail="An internal server error occurred during login. Please try again."
         )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Account is deactivated"
-        )
-    
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/validate-tutor-code/{tutor_code}")
 def validate_tutor_code(tutor_code: str, db: Session = Depends(get_db)):
@@ -131,6 +171,31 @@ def get_my_tutor_code(current_user: User = Depends(get_current_user)):
 def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return current_user
+
+@router.get("/test")
+def test_auth_system():
+    """Test authentication system health"""
+    try:
+        from app.core.config import settings
+        from app.core.database import engine
+        
+        # Test database connection
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "secret_key": "configured" if settings.SECRET_KEY and settings.SECRET_KEY != "your-secret-key-change-in-production" else "not_configured",
+            "algorithm": settings.ALGORITHM,
+            "token_expiry": f"{settings.ACCESS_TOKEN_EXPIRE_MINUTES} minutes"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
 
 @router.put("/me", response_model=UserRead)
 def update_current_user(
