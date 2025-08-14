@@ -3,7 +3,8 @@ from .quiz import Quiz, Question, QuizAttempt, QuizSubmission
 from .assignment import Assignment, AssignmentSubmission
 from .announcement import Announcement
 from .performance import PerformanceRecord
-from .subject import Subject, Grade, StudentGrade
+# Temporarily disabled to fix login issues
+# from .subject import Subject, Grade, StudentGrade
 
 __all__ = [
     "User",
@@ -14,8 +15,9 @@ __all__ = [
     "Assignment",
     "AssignmentSubmission", 
     "Announcement",
-    "PerformanceRecord",
-    "Subject",
-    "Grade",
-    "StudentGrade"
+    "PerformanceRecord"
+    # Temporarily disabled to fix login issues
+    # "Subject",
+    # "Grade",
+    # "StudentGrade"
 ]
