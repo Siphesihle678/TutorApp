@@ -459,7 +459,11 @@ def get_quiz_attempts(
 def test_database_connection(db: Session = Depends(get_db)):
     """Test database connection and basic functionality"""
     try:
-        # Test basic database connectivity
+        # Test basic database connectivity with simple query first
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        
+        # Then test model queries
         quiz_count = db.query(Quiz).count()
         question_count = db.query(Question).count()
         attempt_count = db.query(QuizAttempt).count()

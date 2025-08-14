@@ -181,7 +181,8 @@ def test_auth_system():
         
         # Test database connection
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            from sqlalchemy import text
+            conn.execute(text("SELECT 1"))
         
         return {
             "status": "healthy",

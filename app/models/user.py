@@ -30,7 +30,7 @@ class User(Base):
     announcements_created = relationship("Announcement", back_populates="creator")
     performance_records = relationship("PerformanceRecord", back_populates="student")
     
-    # Subject/Grade relationships (temporarily disabled to fix login issues)
+    # Subject/Grade relationships (commented out to avoid import issues)
     # subjects_created = relationship("Subject", back_populates="tutor")
     # enrolled_grades = relationship("StudentGrade", back_populates="student")
     
