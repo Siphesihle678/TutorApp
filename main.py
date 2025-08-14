@@ -14,8 +14,10 @@ from app.routes import auth, quiz, assignment, announcement, dashboard
 # Temporarily disable subject and migration to fix login issues
 # from app.routes import subject, migration
 
-# Create database tables (with error handling for Railway deployment)
+# Import models and create database tables (with error handling for Railway deployment)
 try:
+    from app.core.database import import_models
+    import_models()
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully")
 except Exception as e:
