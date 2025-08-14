@@ -102,3 +102,4 @@ except Exception as e:
 - Performance tracking was removed temporarily to ensure stable quiz submission
 - This fix prioritizes reliability over additional features
 - Performance tracking can be re-added as a separate enhancement later
+

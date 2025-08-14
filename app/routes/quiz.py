@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import List, Optional
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from ..core.database import get_db
 from ..core.auth import get_current_teacher, get_current_user, get_current_student
 from ..models.user import User
 from ..models.quiz import Quiz, Question, QuizAttempt, QuizSubmission, QuestionType
+from ..models.performance import PerformanceRecord
 from ..schemas.quiz import (
     QuizCreate, QuizRead, QuizUpdate, 
     QuestionCreate, QuestionRead,
@@ -16,40 +17,6 @@ from ..schemas.quiz import (
 from ..services.email_service import send_quiz_notification
 
 router = APIRouter()
-
-# ==================== QUIZ TESTING ====================
-
-@router.get("/test/connection")
-def test_connection(db: Session = Depends(get_db)):
-    """Test database connection and basic functionality"""
-    try:
-        # Test database connection
-        result = db.execute("SELECT 1").scalar()
-        if result != 1:
-            raise Exception("Database connection test failed")
-        
-        # Test quiz table access
-        quiz_count = db.query(Quiz).count()
-        
-        # Test question table access
-        question_count = db.query(Question).count()
-        
-        # Test attempt table access
-        attempt_count = db.query(QuizAttempt).count()
-        
-        return {
-            "status": "success",
-            "database_connected": True,
-            "quiz_count": quiz_count,
-            "question_count": question_count,
-            "attempt_count": attempt_count
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "database_connected": False,
-            "error": str(e)
-        }
 
 # ==================== QUIZ MANAGEMENT (TEACHERS) ====================
 
@@ -196,41 +163,70 @@ def start_quiz(
     db: Session = Depends(get_db)
 ):
     """Start a quiz attempt"""
-    # Check if quiz exists and is active
-    quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_active == True).first()
-    if not quiz:
-        raise HTTPException(status_code=404, detail="Quiz not found or not active")
-    
-    # Check if student already has an active attempt
-    existing_attempt = db.query(QuizAttempt).filter(
-        QuizAttempt.quiz_id == quiz_id,
-        QuizAttempt.student_id == current_student.id,
-        QuizAttempt.completed_at == None
-    ).first()
-    
-    if existing_attempt:
-        # Return existing attempt
+    try:
+        print(f"=== QUIZ START ATTEMPT ===")
+        print(f"Quiz ID: {quiz_id}")
+        print(f"Student ID: {current_student.id}")
+        
+        # Check if quiz exists and is active
+        quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_active == True).first()
+        if not quiz:
+            print("ERROR: Quiz not found or not active")
+            raise HTTPException(status_code=404, detail="Quiz not found or not active")
+        
+        # Check if student already has an active attempt
+        existing_attempt = db.query(QuizAttempt).filter(
+            QuizAttempt.quiz_id == quiz_id,
+            QuizAttempt.student_id == current_student.id,
+            QuizAttempt.completed_at == None
+        ).first()
+        
+        if existing_attempt:
+            print("INFO: Resuming existing attempt")
+            # Return existing attempt
+            return {
+                "attempt_id": existing_attempt.id,
+                "started_at": existing_attempt.started_at,
+                "message": "Resuming existing quiz attempt"
+            }
+        
+        # Create new attempt
+        print("INFO: Creating new attempt")
+        attempt = QuizAttempt(
+            quiz_id=quiz_id,
+            student_id=current_student.id,
+            started_at=datetime.utcnow()
+        )
+        db.add(attempt)
+        db.commit()
+        db.refresh(attempt)
+        
+        print(f"SUCCESS: Created attempt ID {attempt.id}")
+        
         return {
-            "attempt_id": existing_attempt.id,
-            "started_at": existing_attempt.started_at,
-            "message": "Resuming existing quiz attempt"
+            "attempt_id": attempt.id,
+            "started_at": attempt.started_at,
+            "message": "Quiz attempt started successfully"
         }
-    
-    # Create new attempt
-    attempt = QuizAttempt(
-        quiz_id=quiz_id,
-        student_id=current_student.id,
-        started_at=datetime.utcnow()
-    )
-    db.add(attempt)
-    db.commit()
-    db.refresh(attempt)
-    
-    return {
-        "attempt_id": attempt.id,
-        "started_at": attempt.started_at,
-        "message": "Quiz attempt started successfully"
-    }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        print(f"=== QUIZ START ERROR ===")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        
+        # Rollback database changes
+        db.rollback()
+        
+        # Return a proper error response
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while starting the quiz. Please try again."
+        )
 
 @router.post("/{quiz_id}/submit")
 def submit_quiz(
@@ -240,19 +236,18 @@ def submit_quiz(
     db: Session = Depends(get_db)
 ):
     """Submit quiz answers and get results"""
-    print(f"=== QUIZ SUBMISSION START ===")
-    print(f"Quiz ID: {quiz_id}")
-    print(f"Student ID: {current_student.id}")
-    print(f"Number of submissions: {len(submissions)}")
-    
     try:
+        print(f"=== QUIZ SUBMISSION START ===")
+        print(f"Quiz ID: {quiz_id}")
+        print(f"Student ID: {current_student.id}")
+        print(f"Number of submissions: {len(submissions)}")
+        
         # Step 1: Validate quiz exists
         print("Step 1: Validating quiz exists...")
         quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
         if not quiz:
             print("ERROR: Quiz not found")
             raise HTTPException(status_code=404, detail="Quiz not found")
-        print(f"Quiz found: {quiz.title}")
         
         # Step 2: Get active attempt
         print("Step 2: Getting active attempt...")
@@ -265,21 +260,16 @@ def submit_quiz(
         if not attempt:
             print("ERROR: No active quiz attempt found")
             raise HTTPException(status_code=404, detail="No active quiz attempt found")
-        print(f"Active attempt found: {attempt.id}")
         
         # Step 3: Process submissions
         print("Step 3: Processing submissions...")
         total_score = 0
         total_points = 0
-        processed_submissions = []
         
-        for i, submission_data in enumerate(submissions):
-            print(f"Processing submission {i+1}/{len(submissions)}: Question {submission_data.question_id}")
-            
-            # Get question
+        for submission_data in submissions:
             question = db.query(Question).filter(Question.id == submission_data.question_id).first()
             if not question:
-                print(f"WARNING: Question {submission_data.question_id} not found, skipping")
+                print(f"WARNING: Question {submission_data.question_id} not found")
                 continue
             
             # Check if answer is correct
@@ -291,14 +281,13 @@ def submit_quiz(
             elif question.question_type == QuestionType.TRUE_FALSE:
                 is_correct = submission_data.answer.lower().strip() == question.correct_answer.lower().strip()
             elif question.question_type == QuestionType.SHORT_ANSWER:
+                # For short answer, check for partial matches
                 student_answer = submission_data.answer.lower().strip()
                 correct_answer = question.correct_answer.lower().strip()
                 is_correct = student_answer == correct_answer
             
             if is_correct:
                 points_earned = question.points
-            
-            print(f"Question {question.id}: Correct={is_correct}, Points={points_earned}")
             
             # Create submission record
             submission = QuizSubmission(
@@ -308,53 +297,46 @@ def submit_quiz(
                 is_correct=is_correct,
                 points_earned=points_earned
             )
-            processed_submissions.append(submission)
+            db.add(submission)
             
             total_score += points_earned
             total_points += question.points
-        
-        print(f"Total score: {total_score}/{total_points}")
         
         # Step 4: Calculate final results
         print("Step 4: Calculating final results...")
         percentage = (total_score / total_points * 100) if total_points > 0 else 0
         is_passed = percentage >= quiz.passing_score
         
-        print(f"Percentage: {percentage}%, Passed: {is_passed}")
-        
         # Step 5: Update attempt
         print("Step 5: Updating attempt...")
         attempt.completed_at = datetime.utcnow()
         attempt.score = total_score
         attempt.is_passed = is_passed
+        attempt.time_taken = int((attempt.completed_at - attempt.started_at).total_seconds())
         
-        # Fix timezone issue by ensuring both datetimes are timezone-aware
-        if attempt.started_at.tzinfo is None:
-            # If started_at is naive, make it timezone-aware
-            started_at_aware = attempt.started_at.replace(tzinfo=timezone.utc)
-        else:
-            started_at_aware = attempt.started_at
-            
-        if attempt.completed_at.tzinfo is None:
-            # If completed_at is naive, make it timezone-aware
-            completed_at_aware = attempt.completed_at.replace(tzinfo=timezone.utc)
-        else:
-            completed_at_aware = attempt.completed_at
+        # Step 6: Create performance record
+        print("Step 6: Creating performance record...")
+        performance_record = PerformanceRecord(
+            student_id=current_student.id,
+            subject=quiz.subject,
+            assessment_type="quiz",
+            assessment_id=quiz.id,
+            score=total_score,
+            max_score=total_points,
+            percentage=percentage,
+            strengths=[],
+            weaknesses=[],
+            recommendations=f"Keep practicing {quiz.subject} concepts." if is_passed else f"Review {quiz.subject} fundamentals."
+        )
+        db.add(performance_record)
         
-        attempt.time_taken = int((completed_at_aware - started_at_aware).total_seconds())
-        
-        # Step 6: Add all submissions to database
-        print("Step 6: Adding submissions to database...")
-        for submission in processed_submissions:
-            db.add(submission)
-        
-        # Step 7: Commit all changes
+        # Step 7: Commit changes
         print("Step 7: Committing changes...")
         db.commit()
-        print("Database commit successful!")
         
-        # Step 8: Return results
-        result = {
+        print("=== QUIZ SUBMISSION SUCCESS ===")
+        
+        return {
             "score": total_score,
             "max_score": total_points,
             "percentage": round(percentage, 2),
@@ -362,12 +344,8 @@ def submit_quiz(
             "time_taken": attempt.time_taken
         }
         
-        print(f"=== QUIZ SUBMISSION SUCCESS ===")
-        print(f"Result: {result}")
-        return result
-        
     except HTTPException:
-        print("=== QUIZ SUBMISSION HTTP EXCEPTION ===")
+        # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
         print(f"=== QUIZ SUBMISSION ERROR ===")
@@ -376,17 +354,13 @@ def submit_quiz(
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         
-        # Rollback any database changes
-        try:
-            db.rollback()
-            print("Database rollback successful")
-        except Exception as rollback_error:
-            print(f"Rollback error: {rollback_error}")
+        # Rollback database changes
+        db.rollback()
         
-        # Return a proper JSON error response
+        # Return a proper error response
         raise HTTPException(
-            status_code=500, 
-            detail="An error occurred while processing your quiz submission. Please try again."
+            status_code=500,
+            detail="An error occurred while submitting your quiz. Please try again."
         )
 
 # ==================== QUIZ ANALYTICS ====================
@@ -427,10 +401,7 @@ def get_quiz_analytics(
     # Question-level analytics
     question_analytics = []
     for question in quiz.questions:
-        # Fix the join by using explicit join syntax
-        submissions = db.query(QuizSubmission).join(
-            QuizAttempt, QuizSubmission.attempt_id == QuizAttempt.id
-        ).filter(
+        submissions = db.query(QuizSubmission).join(QuizAttempt).filter(
             QuizSubmission.question_id == question.id,
             QuizAttempt.quiz_id == quiz_id
         ).all()
@@ -483,3 +454,28 @@ def get_quiz_attempts(
         }
         for attempt in attempts
     ]
+
+@router.get("/test/connection")
+def test_database_connection(db: Session = Depends(get_db)):
+    """Test database connection and basic functionality"""
+    try:
+        # Test basic database connectivity
+        quiz_count = db.query(Quiz).count()
+        question_count = db.query(Question).count()
+        attempt_count = db.query(QuizAttempt).count()
+        
+        return {
+            "status": "success",
+            "database_connected": True,
+            "quiz_count": quiz_count,
+            "question_count": question_count,
+            "attempt_count": attempt_count,
+            "message": "Database connection is working properly"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "database_connected": False,
+            "error": str(e),
+            "message": "Database connection failed"
+        }

@@ -100,3 +100,4 @@ if __name__ == "__main__":
     
     print("\n" + "=" * 50)
     print("✅ Testing complete! All errors should now return proper JSON responses.")
+

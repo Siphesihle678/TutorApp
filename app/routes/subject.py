@@ -310,3 +310,4 @@ def unenroll_student_from_grade(
     db.commit()
     
     return {"message": "Student unenrolled successfully"}
+

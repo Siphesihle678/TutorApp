@@ -267,3 +267,4 @@ def create_default_subjects(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create default subjects: {str(e)}"
         )
+

@@ -48,3 +48,4 @@ class StudentGrade(Base):
     # Relationships
     student = relationship("User", back_populates="enrolled_grades")
     grade = relationship("Grade", back_populates="students")
+
