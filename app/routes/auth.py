@@ -172,7 +172,7 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return current_user
 
-@router.get("/test")
+@router.get("/test-auth")
 def test_auth_system():
     """Test authentication system health"""
     try:

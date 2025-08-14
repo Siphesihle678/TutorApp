@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -16,7 +16,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), default=UserRole.STUDENT, nullable=False)
-    tutor_id = Column(Integer, nullable=True, index=True)  # Links student to their tutor
+    tutor_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Links student to their tutor
     tutor_code = Column(String, unique=True, nullable=True, index=True)  # Unique code for tutor assignment
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -35,4 +35,4 @@ class User(Base):
     # enrolled_grades = relationship("StudentGrade", back_populates="student")
     
     # Tutor-Student relationships
-    tutor = relationship("User", foreign_keys=[tutor_id], remote_side=[id], backref="students")
+    tutor = relationship("User", foreign_keys=[tutor_id], remote_side=[id], backref="students", lazy="joined")

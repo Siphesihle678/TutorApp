@@ -55,7 +55,7 @@ def main():
     
     # Test 2: Auth system test
     print("\n2. Testing auth system...")
-    auth_test_result = test_endpoint(f"{RAILWAY_URL}/api/auth/test")
+    auth_test_result = test_endpoint(f"{RAILWAY_URL}/api/auth/test-auth")
     print(f"   Status: {auth_test_result['status_code']}")
     print(f"   Response: {auth_test_result['data']}")
     
