@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TutorApp - Migration Setup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .step h3 {
+            color: #555;
+            margin-top: 0;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 TutorApp Migration Setup</h1>
+        
+        <div class="step">
+            <h3>Step 1: Authentication</h3>
+            <p>First, you need to get your authentication token. Log into the TutorApp and copy your token from the browser's developer tools.</p>
+            
+            <div class="input-group">
+                <label for="token">Your Authentication Token:</label>
+                <input type="text" id="token" placeholder="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+            </div>
+            
+            <button onclick="testAuth()">Test Authentication</button>
+            <div id="authResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Run Database Migration</h3>
+            <p>This will create the new subject and grade tables in the database.</p>
+            
+            <button onclick="runMigration()" id="migrateBtn">Run Migration</button>
+            <div id="migrationResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Create Default Subjects</h3>
+            <p>This will create default subjects (CAT, Mathematics, English, Physics, Accounting) with grades for your account.</p>
+            
+            <button onclick="createSubjects()" id="subjectsBtn">Create Default Subjects</button>
+            <div id="subjectsResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Test New Features</h3>
+            <p>Once the migration is complete, you can test the new subject/grade features.</p>
+            
+            <button onclick="testSubjects()" id="testBtn">Test Subjects API</button>
+            <div id="testResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://tutorapp-production.up.railway.app/api';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+        }
+
+        function getHeaders() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                throw new Error('Please enter your authentication token first');
+            }
+            
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+            };
+        }
+
+        async function makeRequest(url, method = 'GET', body = null) {
+            try {
+                const headers = getHeaders();
+                const options = {
+                    method: method,
+                    headers: headers
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    data: data
+                };
+            } catch (error) {
+                return {
+                    ok: false,
+                    status: 0,
+                    data: { detail: error.message }
+                };
+            }
+        }
+
+        async function testAuth() {
+            const result = await makeRequest(`${API_BASE}/auth/me`);
+            
+            if (result.ok) {
+                showResult('authResult', 
+                    `✅ Authentication successful!\nUser: ${result.data.name}\nRole: ${result.data.role}\nEmail: ${result.data.email}`, 
+                    'success'
+                );
+            } else {
+                showResult('authResult', 
+                    `❌ Authentication failed: ${result.data.detail || 'Unknown error'}`, 
+                    'error'
+                );
+            }
+        }
+
+        async function runMigration() {
+            const btn = document.getElementById('migrateBtn');
+            btn.disabled = true;
+            btn.textContent = 'Running Migration...';
+            
+            try {
+                const result = await makeRequest(`${API_BASE}/migration/migrate-subject-grade`, 'POST');
+                
+                if (result.ok) {
+                    showResult('migrationResult', 
+                        `✅ Migration completed successfully!\n\nDetails: ${result.data.details}`, 
+                        'success'
+                    );
+                } else {
+                    showResult('migrationResult', 
+                        `❌ Migration failed: ${result.data.detail || 'Unknown error'}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('migrationResult', 
+                    `❌ Error: ${error.message}`, 
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Migration';
+            }
+        }
+
+        async function createSubjects() {
+            const btn = document.getElementById('subjectsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Creating Subjects...';
+            
+            try {
+                const result = await makeRequest(`${API_BASE}/migration/create-default-subjects`, 'POST');
+                
+                if (result.ok) {
+                    const subjects = result.data.created_subjects.join(', ');
+                    showResult('subjectsResult', 
+                        `✅ Default subjects created successfully!\n\nCreated subjects: ${subjects}\nTeacher: ${result.data.teacher}`, 
+                        'success'
+                    );
+                } else {
+                    showResult('subjectsResult', 
+                        `❌ Failed to create subjects: ${result.data.detail || 'Unknown error'}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('subjectsResult', 
+                    `❌ Error: ${error.message}`, 
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Default Subjects';
+            }
+        }
+
+        async function testSubjects() {
+            const btn = document.getElementById('testBtn');
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            
+            try {
+                const result = await makeRequest(`${API_BASE}/subjects`);
+                
+                if (result.ok) {
+                    const subjects = result.data.map(s => `- ${s.name} (${s.grades.length} grades)`).join('\n');
+                    showResult('testResult', 
+                        `✅ Subjects API working!\n\nYour subjects:\n${subjects}`, 
+                        'success'
+                    );
+                } else {
+                    showResult('testResult', 
+                        `❌ Subjects API test failed: ${result.data.detail || 'Unknown error'}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('testResult', 
+                    `❌ Error: ${error.message}`, 
+                    'error'
+                );
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test Subjects API';
+            }
+        }
+    </script>
+</body>
+</html>
