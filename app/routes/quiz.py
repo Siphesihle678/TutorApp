@@ -18,6 +18,31 @@ from ..services.email_service import send_quiz_notification
 
 router = APIRouter()
 
+# ==================== PUBLIC ENDPOINTS ====================
+
+@router.get("/public", response_model=List[QuizRead])
+def get_public_quizzes(db: Session = Depends(get_db)):
+    """Get public quiz list (no authentication required)"""
+    quizzes = db.query(Quiz).filter(Quiz.is_active == True).all()
+    return quizzes
+
+@router.get("/public/{quiz_id}")
+def get_public_quiz(quiz_id: int, db: Session = Depends(get_db)):
+    """Get public quiz details (no authentication required)"""
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id, Quiz.is_active == True).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    
+    return {
+        "id": quiz.id,
+        "title": quiz.title,
+        "description": quiz.description,
+        "subject": quiz.subject,
+        "time_limit": quiz.time_limit,
+        "passing_score": quiz.passing_score,
+        "question_count": len(quiz.questions) if quiz.questions else 0
+    }
+
 # ==================== QUIZ MANAGEMENT (TEACHERS) ====================
 
 @router.post("/", response_model=QuizRead)

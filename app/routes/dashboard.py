@@ -29,6 +29,49 @@ def test_dashboard():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+@router.get("/stats")
+def get_dashboard_stats(db: Session = Depends(get_db)):
+    """Get general dashboard statistics"""
+    try:
+        # Count total users
+        total_users = db.query(User).count()
+        total_students = db.query(User).filter(User.role == "student").count()
+        total_teachers = db.query(User).filter(User.role == "teacher").count()
+        
+        # Count content
+        total_quizzes = db.query(Quiz).count()
+        total_assignments = db.query(Assignment).count()
+        total_announcements = db.query(Announcement).count()
+        
+        # Count activity
+        total_quiz_attempts = db.query(QuizAttempt).count()
+        total_assignment_submissions = db.query(AssignmentSubmission).count()
+        
+        return {
+            "status": "success",
+            "stats": {
+                "users": {
+                    "total": total_users,
+                    "students": total_students,
+                    "teachers": total_teachers
+                },
+                "content": {
+                    "quizzes": total_quizzes,
+                    "assignments": total_assignments,
+                    "announcements": total_announcements
+                },
+                "activity": {
+                    "quiz_attempts": total_quiz_attempts,
+                    "assignment_submissions": total_assignment_submissions
+                }
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
 @router.get("/debug/students")
 def debug_students(db: Session = Depends(get_db)):
     """Debug endpoint to check student data"""

@@ -17,6 +17,31 @@ from ..services.email_service import send_assignment_notification, send_grade_no
 
 router = APIRouter()
 
+# ==================== PUBLIC ENDPOINTS ====================
+
+@router.get("/public", response_model=List[AssignmentRead])
+def get_public_assignments(db: Session = Depends(get_db)):
+    """Get public assignment list (no authentication required)"""
+    assignments = db.query(Assignment).filter(Assignment.is_active == True).all()
+    return assignments
+
+@router.get("/public/{assignment_id}")
+def get_public_assignment(assignment_id: int, db: Session = Depends(get_db)):
+    """Get public assignment details (no authentication required)"""
+    assignment = db.query(Assignment).filter(Assignment.id == assignment_id, Assignment.is_active == True).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    return {
+        "id": assignment.id,
+        "title": assignment.title,
+        "description": assignment.description,
+        "subject": assignment.subject,
+        "max_points": assignment.max_points,
+        "due_date": assignment.due_date,
+        "created_at": assignment.created_at
+    }
+
 # ==================== ASSIGNMENT MANAGEMENT (TEACHERS) ====================
 
 @router.post("/", response_model=AssignmentRead)

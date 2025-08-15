@@ -10,6 +10,31 @@ from ..services.email_service import email_service
 
 router = APIRouter()
 
+# ==================== PUBLIC ENDPOINTS ====================
+
+@router.get("/public", response_model=List[AnnouncementRead])
+def get_public_announcements(db: Session = Depends(get_db)):
+    """Get public announcement list (no authentication required)"""
+    announcements = db.query(Announcement).order_by(Announcement.created_at.desc()).all()
+    return announcements
+
+@router.get("/public/{announcement_id}")
+def get_public_announcement(announcement_id: int, db: Session = Depends(get_db)):
+    """Get public announcement details (no authentication required)"""
+    announcement = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    
+    return {
+        "id": announcement.id,
+        "title": announcement.title,
+        "content": announcement.content,
+        "is_important": announcement.is_important,
+        "created_at": announcement.created_at
+    }
+
+# ==================== PROTECTED ENDPOINTS ====================
+
 @router.post("/", response_model=AnnouncementRead)
 def create_announcement(
     announcement_data: AnnouncementCreate,
