@@ -383,3 +383,26 @@ def check_schema_status(db: Session = Depends(get_db)):
             detail=f"Schema status check failed: {str(e)}"
         )
 
+@router.delete("/delete-all-users")
+def delete_all_users(db: Session = Depends(get_db)):
+    """Delete all users from the database (DANGEROUS OPERATION)"""
+    try:
+        # Get user count before deletion
+        user_count = db.query(User).count()
+        
+        # Delete all users
+        db.query(User).delete()
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": f"Successfully deleted {user_count} users",
+            "deleted_count": user_count
+        }
+    except Exception as e:
+        db.rollback()
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
