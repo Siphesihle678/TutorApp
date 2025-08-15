@@ -8,6 +8,7 @@ from ..core.auth import get_current_teacher, get_current_user, get_current_stude
 from ..models.user import User
 from ..models.quiz import Quiz, QuizAttempt
 from ..models.assignment import Assignment, AssignmentSubmission
+from ..models.announcement import Announcement
 from ..models.performance import PerformanceRecord
 from ..schemas.performance import StudentPerformance, LeaderboardEntry, DiagnosticReport
 from ..schemas.dashboard import (
