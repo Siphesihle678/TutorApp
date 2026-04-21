@@ -103,8 +103,32 @@ def get_quizzes(
         # Teachers see their own quizzes
         quizzes = query.filter(Quiz.creator_id == current_user.id).all()
     else:
-        # Students see all active quizzes
-        quizzes = query.all()
+        # Students see quizzes matched to their enrolled grades, or global quizzes
+        from ..models.subject import StudentGrade, Grade
+        from sqlalchemy import or_, and_
+        
+        # Get student's enrolled grade IDs
+        enrolled_grades = db.query(StudentGrade.grade_id).filter(
+            StudentGrade.student_id == current_user.id,
+            StudentGrade.is_active == True
+        ).all()
+        enrolled_grade_ids = [g[0] for g in enrolled_grades]
+        
+        # Get corresponding subject IDs
+        enrolled_subject_ids = []
+        if enrolled_grade_ids:
+            enrolled_subjects = db.query(Grade.subject_id).filter(
+                Grade.id.in_(enrolled_grade_ids)
+            ).all()
+            enrolled_subject_ids = [s[0] for s in enrolled_subjects]
+            
+        quizzes = query.filter(
+            or_(
+                Quiz.grade_id.in_(enrolled_grade_ids) if enrolled_grade_ids else False,
+                Quiz.subject_id.in_(enrolled_subject_ids) if enrolled_subject_ids else False,
+                and_(Quiz.grade_id == None, Quiz.subject_id == None)
+            )
+        ).all()
     
     return quizzes
 

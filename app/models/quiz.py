@@ -25,15 +25,13 @@ class Quiz(Base):
     
     # Foreign Keys
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    # Temporarily disabled to fix login issues
-    # subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)  # Link to specific subject
-    # grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)      # Link to specific grade
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)  # Link to specific subject
+    grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)      # Link to specific grade
     
     # Relationships
     creator = relationship("User", back_populates="quizzes_created")
-    # Temporarily disabled to fix login issues
-    # subject = relationship("Subject", back_populates="quizzes")
-    # grade = relationship("Grade", back_populates="quizzes")
+    subject_rel = relationship("Subject", back_populates="quizzes")
+    grade = relationship("Grade", back_populates="quizzes")
     questions = relationship("Question", back_populates="quiz", cascade="all, delete-orphan")
     attempts = relationship("QuizAttempt", back_populates="quiz", cascade="all, delete-orphan")
 

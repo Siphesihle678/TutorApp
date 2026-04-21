@@ -21,8 +21,9 @@
                     <h4>Student Portal</h4>
                     <ul class="nav flex-column">
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('overview')">Overview</a></li>
-                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('quizzes')">Available Quizzes</a></li>
-                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('assignments')">Assignments</a></li>
+                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('quizzes')">Gamified Quizzes</a></li>
+                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('assessments')">Formal Assessments</a></li>
+                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('assignments')">Homework</a></li>
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('performance')">My Performance</a></li>
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('leaderboard')">Leaderboard</a></li>
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="logout()">Logout</a></li>
@@ -61,12 +62,19 @@
                 </div>
                 
                 <div id="quizzes-section" style="display: none;">
-                    <h2>Available Quizzes</h2>
+                    <h2>Gamified Quizzes</h2>
+                    <p class="text-muted">Interactive, fast-paced flashcard tests.</p>
                     <div id="quizzesList">Loading quizzes...</div>
                 </div>
                 
+                <div id="assessments-section" style="display: none;">
+                    <h2>Formal Assessments</h2>
+                    <p class="text-muted">Strict timed exams requiring data file downloads and uploads.</p>
+                    <div id="assessmentsList">Loading formal assessments...</div>
+                </div>
+
                 <div id="assignments-section" style="display: none;">
-                    <h2>Assignments</h2>
+                    <h2>Homework</h2>
                     <div id="assignmentsList">Loading assignments...</div>
                 </div>
                 
@@ -97,6 +105,49 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" onclick="submitQuiz()">Submit Quiz</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formal Assessment Lockdown Modal -->
+    <div class="modal fade" id="assessmentModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content" style="background-color: #f8f9fa;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #8b0000, #dc143c); color: white;">
+                    <h5 class="modal-title" id="assessmentModalTitle">FORMAL ASSESSMENT - IN PROGRESS</h5>
+                    <div id="assessmentTimer" class="ms-auto fw-bold" style="font-size: 1.5rem; font-family: monospace; padding: 5px 15px; background: rgba(0,0,0,0.3); border-radius: 5px;">02:00:00</div>
+                </div>
+                <div class="modal-body" style="padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                    <div class="alert alert-warning border-start border-4 border-warning shadow-sm">
+                        <strong>⚠️ Strict Lockdown Active:</strong> Do not refresh or close this window. Ensure all data files are submitted before the timer expires.
+                    </div>
+                    
+                    <div id="dataFilesSection" class="mb-4 p-4 bg-white border rounded shadow-sm" style="display: none; border-left: 4px solid #0d6efd !important;">
+                        <h4 style="color: #0d6efd;">📎 Assessment Data Files</h4>
+                        <p class="text-muted mb-3">Download the required starting files to complete the practical sections.</p>
+                        <div id="dataFilesList" class="d-flex gap-2 flex-wrap"></div>
+                    </div>
+
+                    <div id="assessmentQuestions" class="mb-4">
+                        <!-- Render Text boxes and MCQ here -->
+                        <div class="card mb-3 shadow-sm border-0">
+                            <div class="card-header bg-white fw-bold">Section A: Theory & Practical Rationale</div>
+                            <div class="card-body">
+                                <p>Provide your typed reasoning for the Database design choices below:</p>
+                                <textarea id="assessmentRationale" class="form-control" rows="8" placeholder="Type your answers here..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="uploadSection" class="p-4 bg-white border rounded shadow-sm mt-4" style="border-left: 4px solid #198754 !important;">
+                        <h4 style="color: #198754;">📤 Final System Submission</h4>
+                        <p class="text-muted mb-3">Upload your strictly modified data files (e.g., .accdb, .xlsx, .docx, .html) here before clicking Submit.</p>
+                        <input type="file" id="assessmentFileUpload" class="form-control form-control-lg" multiple>
+                    </div>
+                </div>
+                <div class="modal-footer" style="background-color: white;">
+                    <button type="button" class="btn btn-danger btn-lg px-5 shadow" onclick="submitAssessment()">Submit & Lock Assessment</button>
                 </div>
             </div>
         </div>
@@ -543,9 +594,129 @@
             const content = prompt('Enter your assignment content:');
             if (content) {
                 // This would be implemented with a proper form
-                alert('Assignment submission functionality coming soon!');
+        // ==========================================
+        // Formal Assessment Logic
+        // ==========================================
+        let assessmentTimerInterval;
+        let currentAssessmentId = null;
+
+        async function loadAssessments() {
+            try {
+                const response = await fetch('/api/assessments', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (response.ok) {
+                    const assessments = await response.json();
+                    let html = '<div class="row">';
+                    if (assessments.length === 0) {
+                        html += '<div class="col-12"><p class="text-muted">No formal assessments active.</p></div>';
+                    } else {
+                        assessments.forEach(a => {
+                            html += `
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100 shadow-sm border-danger">
+                                        <div class="card-header bg-danger text-white fw-bold">⚠️ EXAM LOCKDOWN</div>
+                                        <div class="card-body">
+                                            <h5 class="card-title">${a.title}</h5>
+                                            <p class="card-text text-muted">Time Limit: ${a.time_limit_minutes} minutes</p>
+                                            <button class="btn btn-outline-danger w-100 fw-bold" onclick="startAssessment(${a.id}, '${a.title}')">ENTER EXAM MODE</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    html += '</div>';
+                    document.getElementById('assessmentsList').innerHTML = html;
+                }
+            } catch (error) {
+                console.error("Failed to load assessments:", error);
             }
         }
+
+        async function startAssessment(assessmentId, title) {
+            if (!confirm('WARNING: Starting this assessment will lock your screen and begin the strict countdown timer. Ensure you are ready. Continue?')) return;
+            
+            try {
+                const response = await fetch(`/api/assessments/${assessmentId}/start`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (response.ok) {
+                    currentAssessmentId = assessmentId;
+                    document.getElementById('assessmentModalTitle').innerText = `EXAM: ${title}`;
+                    document.getElementById('assessmentRationale').value = '';
+                    document.getElementById('assessmentFileUpload').value = '';
+                    
+                    // Show mock file downloads
+                    document.getElementById('dataFilesSection').style.display = 'block';
+                    document.getElementById('dataFilesList').innerHTML = `
+                        <button class="btn btn-outline-primary shadow-sm" onclick="alert('Downloading Data_Students.accdb')">⬇️ Data_Students.accdb</button>
+                        <button class="btn btn-outline-success shadow-sm" onclick="alert('Downloading Financials.xlsx')">⬇️ Financials.xlsx</button>
+                    `;
+
+                    // Start strict timer (mock 2 hours)
+                    let timeRemaining = 7200; 
+                    clearInterval(assessmentTimerInterval);
+                    assessmentTimerInterval = setInterval(() => {
+                        timeRemaining--;
+                        const h = String(Math.floor(timeRemaining / 3600)).padStart(2, '0');
+                        const m = String(Math.floor((timeRemaining % 3600) / 60)).padStart(2, '0');
+                        const s = String(timeRemaining % 60).padStart(2, '0');
+                        document.getElementById('assessmentTimer').innerText = `${h}:${m}:${s}`;
+                        
+                        if(timeRemaining <= 0) {
+                            clearInterval(assessmentTimerInterval);
+                            alert("TIME UP! Assessment is automatically locking and submitting.");
+                            submitAssessment();
+                        }
+                    }, 1000);
+
+                    const modal = new bootstrap.Modal(document.getElementById('assessmentModal'));
+                    modal.show();
+                } else {
+                    alert('Error initiating lockdown. Try again.');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function submitAssessment() {
+            clearInterval(assessmentTimerInterval);
+            const rationale = document.getElementById('assessmentRationale').value;
+            const fileInput = document.getElementById('assessmentFileUpload');
+            const files = fileInput.files;
+
+            const formData = new FormData();
+            formData.append('responses', JSON.stringify({ rationale: rationale }));
+            if (files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/assessments/${currentAssessmentId}/submit`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    alert("Assessment successfully submitted and safely stored.");
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('assessmentModal'));
+                    if (modal) modal.hide();
+                } else {
+                    alert("Submission failed. Retrying...");
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        const originalShowSection = showSection;
+        showSection = (sectionId) => {
+            originalShowSection(sectionId);
+            if(sectionId === 'assessments') loadAssessments();
+        };
 
         function logout() {
             localStorage.removeItem('token');

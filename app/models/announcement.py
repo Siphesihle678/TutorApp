@@ -19,3 +19,19 @@ class Announcement(Base):
     
     # Relationships
     creator = relationship("User", back_populates="announcements_created")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    type = Column(String, default="reminder") # info, reminder, alert
+    link_url = Column(String, nullable=True)  # Optional deep link
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationship
+    recipient = relationship("User", foreign_keys=[recipient_id])

@@ -390,17 +390,55 @@ def delete_all_users(db: Session = Depends(get_db)):
         # Get user count before deletion
         user_count = db.query(User).count()
         
-        # Delete all users
+        # Delete related data first to avoid foreign key violations
+        print("🗑️  Deleting related data...")
+        
+        # Delete quiz attempts
+        db.execute(text("DELETE FROM quiz_attempts"))
+        print("✅ Deleted quiz attempts")
+        
+        # Delete quiz submissions
+        db.execute(text("DELETE FROM quiz_submissions"))
+        print("✅ Deleted quiz submissions")
+        
+        # Delete assignment submissions
+        db.execute(text("DELETE FROM assignment_submissions"))
+        print("✅ Deleted assignment submissions")
+        
+        # Delete performance records
+        db.execute(text("DELETE FROM performance_records"))
+        print("✅ Deleted performance records")
+        
+        # Delete announcements
+        db.execute(text("DELETE FROM announcements"))
+        print("✅ Deleted announcements")
+        
+        # Delete assignments
+        db.execute(text("DELETE FROM assignments"))
+        print("✅ Deleted assignments")
+        
+        # Delete questions
+        db.execute(text("DELETE FROM questions"))
+        print("✅ Deleted questions")
+        
+        # Delete quizzes
+        db.execute(text("DELETE FROM quizzes"))
+        print("✅ Deleted quizzes")
+        
+        # Now delete all users
         db.query(User).delete()
+        print("✅ Deleted all users")
+        
         db.commit()
         
         return {
             "status": "success",
-            "message": f"Successfully deleted {user_count} users",
+            "message": f"Successfully deleted {user_count} users and all related data",
             "deleted_count": user_count
         }
     except Exception as e:
         db.rollback()
+        print(f"❌ Error during deletion: {e}")
         return {
             "status": "error",
             "message": str(e)

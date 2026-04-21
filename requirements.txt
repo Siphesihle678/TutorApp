@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 sqlalchemy==2.0.23
@@ -16,4 +17,23 @@ emails==0.6.0
 python-dateutil==2.8.2
 gunicorn==21.2.0
 httpx==0.25.2
+=======
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+pydantic
+pydantic[email]
+python-jose[cryptography]
+bcrypt
+passlib[bcrypt]
+python-multipart
+python-dotenv
+jinja2
+aiofiles
+emails
+python-dateutil
+gunicorn
+httpx
+>>>>>>> bee72e4 (Feat: Complete Formal Assessment workflow & AI Studio integration)
 

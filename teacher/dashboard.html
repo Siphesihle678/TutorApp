@@ -27,7 +27,9 @@
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('quizzes')">Quizzes</a></li>
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('assignments')">Assignments</a></li>
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('students')">Students</a></li>
-                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="logout()">Logout</a></li>
+                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('profiles')">Subject & Grades</a></li>
+                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('ai-studio')" style="background: linear-gradient(90deg, #8b5cf6, #3b82f6); border-radius: 5px; margin-top: 10px;">✨ AI Studio</a></li>
+                        <li class="nav-item mt-3"><a class="nav-link text-white" href="#" onclick="logout()">Logout</a></li>
                     </ul>
                 </div>
             </div>
@@ -77,6 +79,52 @@
                 <div id="students-section" style="display: none;">
                     <h2>Student Performance</h2>
                     <div id="studentsList">Loading...</div>
+                </div>
+
+                <div id="profiles-section" style="display: none;">
+                    <h2>Manage Subjects & Target Grades</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button class="btn btn-primary mb-3" onclick="createSubject()">+ Create Subject</button>
+                            <div id="subjectsList">Loading...</div>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Subject Grades</h4>
+                            <div id="gradesList" class="alert alert-info">Select a Subject to view/add its Grades.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ai-studio-section" style="display: none;">
+                    <h2>Generate with AI</h2>
+                    <p class="text-muted">Welcome to your Premium Teacher Toolkit. Use generative models to synthesize study plans or unique exam data sets instantly.</p>
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="stats-card">
+                                <h4>Generate Study Plan</h4>
+                                <div class="mb-3">
+                                    <label>Topic Name</label>
+                                    <input type="text" id="aiTopic" class="form-control" placeholder="e.g. Database Normalization">
+                                </div>
+                                <button class="btn btn-primary w-100" onclick="generateStudyPlan()">✨ Generate Plan</button>
+                                <div id="aiPlanOutput" class="mt-3 p-3 bg-light rounded" style="display:none; white-space: pre-wrap;"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="stats-card">
+                                <h4>Synthesize Unique CAT Data</h4>
+                                <div class="mb-3">
+                                    <label>Dataset Scenario</label>
+                                    <select id="aiDataScenario" class="form-control">
+                                        <option value="database">Microsoft Access (Database)</option>
+                                        <option value="excel">Microsoft Excel (Spreadsheet)</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary w-100" onclick="generateUniqueData()">✨ Synthesize Scenario</button>
+                                <div id="aiDataOutput" class="mt-3 p-3 bg-light rounded" style="display:none; font-family: monospace;"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -237,6 +285,7 @@
                 case 'quizzes': loadQuizzes(); break;
                 case 'assignments': loadAssignments(); break;
                 case 'students': loadStudents(); break;
+                case 'profiles': loadProfiles(); break;
             }
         }
 
@@ -345,8 +394,9 @@
                         `<div class="card mb-3">
                             <div class="card-body">
                                 <h5>${student.student_name}</h5>
-                                <p>Overall Performance: ${student.overall_percentage}%</p>
+                                <p>Overall Performance: ${student.overall_percentage ? student.overall_percentage : 0}%</p>
                                 <button class="btn btn-sm btn-info" onclick="viewStudentDetails(${student.student_id})">View Details</button>
+                                <button class="btn btn-sm btn-success" onclick="assignStudentProfile(${student.student_id}, '${student.student_name}')">Assign Grade/Subject</button>
                             </div>
                         </div>`
                     ).join('');
@@ -847,10 +897,177 @@
             alert('Student details view coming soon!');
         }
 
+        let selectedTargetSubjectId = null;
+
+        async function loadProfiles() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/subjects`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (response.ok) {
+                    const subjects = await response.json();
+                    const html = subjects.map(s => 
+                        `<div class="card mb-2 shadow-sm">
+                            <div class="card-body d-flex justify-content-between">
+                                <div>
+                                    <h6>${s.name}</h6>
+                                    <small class="text-muted">${s.description || 'No Description'}</small>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="loadGradesForSubject(${s.id}, '${s.name}')">View Grades</button>
+                            </div>
+                        </div>`
+                    ).join('');
+                    document.getElementById('subjectsList').innerHTML = html || '<p>No subjects created yet.</p>';
+                }
+            } catch(e) { console.error('Error loading subject profiles:', e); }
+        }
+
+        async function createSubject() {
+            const name = prompt("Enter Subject Name (e.g. Mathematics):");
+            if (!name) return;
+            const desc = prompt("Enter Description:");
+            const response = await fetch(`${API_BASE_URL}/subjects`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ name: name, description: desc })
+            });
+            if (response.ok) loadProfiles();
+        }
+
+        async function loadGradesForSubject(subjectId, subjectName) {
+            selectedTargetSubjectId = subjectId;
+            try {
+                const response = await fetch(`${API_BASE_URL}/subjects/${subjectId}/grades`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (response.ok) {
+                    const grades = await response.json();
+                    let html = `<h5>Enrolled Grades for: ${subjectName}</h5>`;
+                    html += `<button class="btn btn-sm btn-success mb-2" onclick="createGrade(${subjectId})">+ Add Grade Level</button>`;
+                    html += `<ul class="list-group">`;
+                    grades.forEach(g => {
+                        html += `<li class="list-group-item d-flex justify-content-between">${g.name} <button class="btn btn-sm btn-outline-danger" onclick="alert('Delete locked')">Del</button></li>`;
+                    });
+                    html += `</ul>`;
+                    document.getElementById('gradesList').innerHTML = html;
+                    document.getElementById('gradesList').classList.remove('alert-info');
+                }
+            } catch(e) { console.error('Error loading Grades:', e); }
+        }
+
+        async function createGrade(subjectId) {
+            const name = prompt("Enter Grade Name (e.g., Grade 12 CAT):");
+            if (!name) return;
+            const response = await fetch(`${API_BASE_URL}/subjects/${subjectId}/grades`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify({ name: name })
+            });
+            if (response.ok) loadGradesForSubject(subjectId, "Subject");
+        }
+
+        async function assignStudentProfile(studentId, studentName) {
+            // First load all open grades
+            const response = await fetch(`${API_BASE_URL}/grades`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (response.ok) {
+                const grades = await response.json();
+                if(grades.length === 0){
+                    alert("You must create a Subject and at least one Grade via 'Subject & Grades' tab before assigning students!");
+                    return;
+                }
+                
+                let gradeOptions = grades.map(g => `${g.id}: ${g.name}`).join('\\n');
+                const selectedGradeId = prompt(`Type the ID of the exact Grade to enroll ${studentName}:\\n\\n${gradeOptions}`);
+                
+                if(!selectedGradeId) return;
+
+                const enrollResponse = await fetch(`${API_BASE_URL}/grades/${selectedGradeId}/enroll`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    body: JSON.stringify({ student_id: studentId })
+                });
+
+                if (enrollResponse.ok) {
+                    alert(`${studentName} successfully mathematically assigned to the targeted Grade Architecture!`);
+                } else {
+                    const e = await enrollResponse.json();
+                    alert("Registration rejection: " + (e.detail || "Unknown Conflict"));
+                }
+            }
+        }
+
         function logout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/';
+        }
+
+        // ==========================================
+        // AI Studio Logic
+        // ==========================================
+        async function generateStudyPlan() {
+            const topic = document.getElementById('aiTopic').value;
+            if (!topic) { alert("Please enter a topic."); return; }
+            
+            const btn = event.target;
+            btn.innerHTML = '✨ Generating...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/ai_studio/generate-study-plan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ topic: topic, scenario_type: 'none' })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    const output = document.getElementById('aiPlanOutput');
+                    output.style.display = 'block';
+                    output.innerText = data.plan;
+                } else {
+                    alert('Error: ' + data.detail);
+                }
+            } catch (e) { console.error(e); }
+            
+            btn.innerHTML = '✨ Generate Plan';
+            btn.disabled = false;
+        }
+
+        async function generateUniqueData() {
+            const scenario = document.getElementById('aiDataScenario').value;
+            const btn = event.target;
+            
+            btn.innerHTML = '✨ Synthesizing...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/ai_studio/synthesize-dataset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ topic: 'mock', scenario_type: scenario })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    const output = document.getElementById('aiDataOutput');
+                    output.style.display = 'block';
+                    output.innerText = `Type: ${data.file_type}\nMessage: ${data.generator_message}\n\nData:\n` + JSON.stringify(data.data, null, 2);
+                } else {
+                    alert('Error: ' + data.detail);
+                }
+            } catch (e) { console.error(e); }
+            
+            btn.innerHTML = '✨ Synthesize Scenario';
+            btn.disabled = false;
         }
     </script>
 </body>

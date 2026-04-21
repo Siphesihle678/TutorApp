@@ -56,3 +56,21 @@ class StudentGradeRead(BaseModel):
     class Config:
         from_attributes = True
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

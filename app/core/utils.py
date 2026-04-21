@@ -42,3 +42,21 @@ def find_tutor_by_code(db: Session, tutor_code: str) -> User:
         User.is_active == True
     ).first()
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

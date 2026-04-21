@@ -11,8 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from app.core.database import engine, Base
 from app.routes import auth, quiz, assignment, announcement, dashboard, migration
-# Temporarily disable subject to fix login issues
-# from app.routes import subject
+from app.routes import subject
 
 # Import models and create database tables (with error handling for Railway deployment)
 try:
@@ -57,6 +56,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Mount static files
 app.mount("/static", StaticFiles(directory="."), name="static")
 
+from app.routes import auth, quiz, assignment, announcement, dashboard, migration
+from app.routes import subject, assessment, ai_studio
+
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(quiz.router, prefix="/api/quizzes", tags=["Quizzes"])
@@ -64,9 +66,9 @@ app.include_router(assignment.router, prefix="/api/assignments", tags=["Assignme
 app.include_router(announcement.router, prefix="/api/announcements", tags=["Announcements"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(migration.router, prefix="/api/migration", tags=["Migration"])
-# Temporarily disable subject routes to fix login issues
-# app.include_router(subject.router, prefix="/api", tags=["Subjects & Grades"])
-
+app.include_router(subject.router, prefix="/api", tags=["Subjects & Grades"])
+app.include_router(assessment.router, prefix="/api/assessments", tags=["Assessments"])
+app.include_router(ai_studio.router, prefix="/api/ai_studio", tags=["AI Studio"])
 
 from fastapi.responses import FileResponse
 
