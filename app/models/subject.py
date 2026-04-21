@@ -18,7 +18,7 @@ class Subject(Base):
     tutor = relationship("User", back_populates="subjects_created")
     grades = relationship("Grade", back_populates="subject", cascade="all, delete-orphan")
     quizzes = relationship("Quiz", back_populates="subject_rel")
-    assignments = relationship("Assignment", back_populates="subject")
+    # assignments = relationship("Assignment", back_populates="subject")
 
 class Grade(Base):
     __tablename__ = "grades"
@@ -34,7 +34,7 @@ class Grade(Base):
     subject = relationship("Subject", back_populates="grades")
     students = relationship("StudentGrade", back_populates="grade")
     quizzes = relationship("Quiz", back_populates="grade")
-    assignments = relationship("Assignment", back_populates="grade")
+    # assignments = relationship("Assignment", back_populates="grade")
 
 class StudentGrade(Base):
     __tablename__ = "student_grades"
