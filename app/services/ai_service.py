@@ -1,51 +1,119 @@
 import json
 import random
+import os
+import google.generativeai as genai
+from typing import Dict, Any
+
+# Configure Gemini (it will warn if key is invalid when called, not on import)
+_gemini_key = os.environ.get("GEMINI_API_KEY", "")
+if _gemini_key:
+    genai.configure(api_key=_gemini_key)
 
 class TutorAIAssistant:
-    """Mock AI wrapper. Swap these out with actual openai or google.generativeai logic later."""
+    """Fully functional AI wrapper leveraging Google Gemini 1.5 Flash."""
     
-    @staticmethod
-    def grade_text_answer(question_text: str, student_answer: str, max_points: float) -> dict:
-        """Mocks reading the student's text structure and giving a score."""
-        deduction = random.uniform(0, max_points * 0.2) # Max 20% deduction in mock
-        score = max(0, max_points - deduction)
-        return {
-            "ai_suggested_score": round(score, 1),
-            "ai_feedback": "The reasoning is generally solid but lacks a minor technical detail. AI Suggestion: Mention integrity constraints."
-        }
+    def __init__(self):
+        # We use Flash by default as it is fast and heavily suitable for JSON/text tasks
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.json_model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+    
+    def grade_text_answer(self, question_text: str, student_answer: str, max_points: float) -> dict:
+        """Dynamically grade student answers."""
+        if not _gemini_key:
+            # Fallback mock
+            deduction = random.uniform(0, max_points * 0.2)
+            return {"ai_suggested_score": round(max(0, max_points - deduction), 1), "ai_feedback": "Mock Feedback: Provide API Key for real AI generation."}
+            
+        prompt = f"""
+        You are a strict but fair academic tutor grading an exam.
+        Question: {question_text}
+        Student Answer: {student_answer}
+        Maximum Points: {max_points}
         
-    @staticmethod
-    def generate_study_plan(topic: str, duration_weeks: int) -> str:
-        """Returns a generic markdown study plan based on a topic string."""
-        return f"### {duration_weeks}-Week Study Plan for {topic}\n\n- **Week 1:** Introduction and Fundamentals\n- **Week 2:** Core Application\n- **Week 3:** Complex Formulas/Queries\n- **Week 4:** Final Mock Exam Integration"
+        Analyze the student's answer. Output ONLY a valid JSON object with the following keys:
+        - "ai_suggested_score": a float representing the score they deserve (max {max_points})
+        - "ai_feedback": a very short 1-2 sentence constructive feedback.
+        """
+        try:
+            response = self.json_model.generate_content(prompt)
+            return json.loads(response.text)
+        except Exception as e:
+            print(f"Gemini API Error: {e}")
+            return {"ai_suggested_score": max_points, "ai_feedback": "Error generating AI response. Defaulting to full score."}
+        
+    def generate_study_plan(self, topic: str, duration_weeks: int) -> str:
+        """Returns a bespoke markdown study plan."""
+        if not _gemini_key:
+            return f"### Mock {duration_weeks}-Week Study Plan for {topic}\n*(Please add GEMINI_API_KEY to your .env file to see the real AI magic!)*"
+            
+        prompt = f"Act as an expert curriculum designer. Generate a highly structured, engaging {duration_weeks}-week study plan markdown document for the topic: '{topic}'. Do not include introductory conversational text, just output exactly the markdown."
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"**Error generating plan:** {str(e)}"
 
-    @staticmethod
-    def synthesize_unique_dataset(scenario_type: str) -> dict:
-        """Solves the 'same data file over and over' request by mathematically synthesizing unique CSV metadata."""
-        uid = random.randint(1000, 9999)
-        if "database" in scenario_type.lower() or "access" in scenario_type.lower():
-            return {
-                "file_type": "csv_representing_table",
-                "table_name": f"Tbl_{uid}_Customers",
-                "columns": ["CustomerID", "FullName", "SubscriptionLevel", "MonthlyFee"],
-                "data": [
-                    [f"CUST{uid}1", "Alice Johnson", "Premium", "450.00"],
-                    [f"CUST{uid}2", "Bob Smith", "Basic", "150.00"],
-                    [f"CUST{uid}3", "Charlie Davis", "Pro", "299.99"]
-                ],
-                "generator_message": f"Unique Random Scenario '{uid}' created. You can cast this to an Access file."
-            }
-        elif "excel" in scenario_type.lower():
-            return {
-                "file_type": "csv_representing_spreadsheet",
-                "sheet_name": f"Data_{uid}",
-                "columns": ["Item", "CostPrice", "SellingPrice", "Markup"],
-                "data": [
-                    ["Product A", "10", "15", "=C2-B2"],
-                    ["Product B", "20", "45", "=C3-B3"]
-                ],
-                "generator_message": "Unique VLOOKUP/Markup scenario generated."
-            }
-        return {"error": "Scenario type not recognized. Valid inputs: 'database', 'excel'"}
+    def synthesize_unique_dataset(self, scenario_type: str) -> dict:
+        """Mathematically synthesize unique structural JSON for database/excel teaching."""
+        if not _gemini_key:
+            uid = random.randint(1000, 9999)
+            return {"file_type": "mock_csv", "table_name": f"Mock_{uid}", "columns": ["ID", "Val"], "data": [["1", "A"]], "generator_message": "Mock dataset. Add API key."}
+            
+        prompt = f"""
+        Generate a teaching scenario dataset for a '{scenario_type}' lesson.
+        Output ONLY a valid JSON object matching this exact schema:
+        {{
+            "file_type": "csv_representing_table",
+            "table_name": "AppropriateTableName",
+            "columns": ["Col1", "Col2", "Col3"],
+            "data": [
+                ["Row1Val1", "Row1Val2", "Row1Val3"],
+                ["Row2Val1", "Row2Val2", "Row2Val3"]
+            ],
+            "generator_message": "A short 1 sentence message explaining the scenario."
+        }}
+        Provide randomly invented, highly realistic data with 4-5 columns and exactly 5 items.
+        """
+        try:
+            response = self.json_model.generate_content(prompt)
+            return json.loads(response.text)
+        except Exception as e:
+            return {"error": f"Failed to generate dataset: {str(e)}"}
+            
+    def generate_quiz_from_content(self, content: str) -> dict:
+        """Parses raw text content and spits out an editable JSON quiz schema."""
+        if not _gemini_key:
+            return {"title": "Mock API Key Quiz", "description": "You need to add GEMINI_API_KEY to your .env file.", "questions": []}
+            
+        prompt = f"""
+        You are an expert test creator. Here is raw study material provided by a teacher:
+        START MATERIAL
+        {content}
+        END MATERIAL
+        
+        Generate a beautiful, engaging quiz based STRICTLY on the content provided. 
+        Create exactly 5 questions (mix of "multiple_choice", "true_false", and "short_answer").
+        
+        Output ONLY a valid JSON object adhering to this schema:
+        {{
+            "title": "A catchy title summarizing the content",
+            "description": "A short 1 sentence description",
+            "questions": [
+                {{
+                    "text": "The question text",
+                    "question_type": "multiple_choice",
+                    "options": ["A", "B", "C", "D"], // Only for multiple_choice, otherwise empty array []
+                    "correct_answer": "The exact correct option string (e.g. 'A' or 'True' or 'The specific short answer keyword')",
+                    "points": 1.0,
+                    "explanation": "A very short explanation of why this is correct."
+                }}
+            ]
+        }}
+        """
+        try:
+            response = self.json_model.generate_content(prompt)
+            return json.loads(response.text)
+        except Exception as e:
+            return {"title": "API Error", "description": str(e), "questions": []}
 
 ai_assistant = TutorAIAssistant()

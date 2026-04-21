@@ -29,6 +29,7 @@
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('students')">Students</a></li>
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('profiles')">Subject & Grades</a></li>
                         <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('ai-studio')" style="background: linear-gradient(90deg, #8b5cf6, #3b82f6); border-radius: 5px; margin-top: 10px;">✨ AI Studio</a></li>
+                        <li class="nav-item"><a class="nav-link text-white" href="#" onclick="showSection('ai-quiz-wizard')" style="background: linear-gradient(90deg, #ec4899, #f43f5e); border-radius: 5px; margin-top: 10px;">✨ AI Quiz Wizard</a></li>
                         <li class="nav-item mt-3"><a class="nav-link text-white" href="#" onclick="logout()">Logout</a></li>
                     </ul>
                 </div>
@@ -124,6 +125,61 @@
                                 <div id="aiDataOutput" class="mt-3 p-3 bg-light rounded" style="display:none; font-family: monospace;"></div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div id="ai-quiz-wizard-section" style="display: none;">
+                    <h2>✨ AI Quiz Generator Wizard</h2>
+                    <p class="text-muted">Paste your study material below, and the AI will auto-generate a complete, editable Quiz!</p>
+                    
+                    <!-- Wizard Step 1: Input -->
+                    <div id="aiQuizStep1" class="stats-card mb-4">
+                        <h4>Step 1: Provide Study Content</h4>
+                        <textarea id="aiQuizSourceContent" class="form-control mb-3" rows="8" placeholder="Paste textbook text, notes, or paragraphs here..."></textarea>
+                        <button class="btn btn-primary" onclick="generateAIQuiz()">🧠 Generate Quiz</button>
+                    </div>
+
+                    <!-- Wizard Step 2: Processing -->
+                    <div id="aiQuizStep2" class="stats-card mb-4 text-center" style="display: none;">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <h4>Gemini is reading your content...</h4>
+                        <p class="text-muted">Generating perfectly structured questions.</p>
+                    </div>
+
+                    <!-- Wizard Step 3: Editor -->
+                    <div id="aiQuizStep3" class="stats-card mb-4" style="display: none;">
+                        <h4>Step 2: Review & Edit Quiz</h4>
+                        <div class="mb-3">
+                            <label>Quiz Title</label>
+                            <input type="text" id="aiQuizTitle" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label>Description</label>
+                            <input type="text" id="aiQuizDesc" class="form-control">
+                        </div>
+                        
+                        <div id="aiQuizQuestionsContainer" class="mt-4">
+                            <!-- JS injected editors -->
+                        </div>
+                        
+                        <hr>
+                        <h4>Step 3: Assignment</h4>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label>Target Subject</label>
+                                <select class="form-control" id="aiQuizSubjectTarget" required>
+                                    <option value="CAT">CAT</option>
+                                    <option value="Mathematics">Mathematics</option>
+                                    <option value="Life Sciences">Life Sciences</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Passing Score (%)</label>
+                                <input type="number" id="aiQuizPassScore" class="form-control" value="60">
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-success w-100" onclick="saveAIQuizToDatabase()">💾 Finalize & Publish Quiz</button>
                     </div>
                 </div>
             </div>
@@ -1068,6 +1124,154 @@
             
             btn.innerHTML = '✨ Synthesize Scenario';
             btn.disabled = false;
+        }
+
+        // ==========================================
+        // AI Quiz Wizard Logic
+        // ==========================================
+        let currentAIQuizModel = null;
+
+        async function generateAIQuiz() {
+            const content = document.getElementById('aiQuizSourceContent').value;
+            if(!content) { alert('Please paste some content first!'); return; }
+            
+            document.getElementById('aiQuizStep1').style.display = 'none';
+            document.getElementById('aiQuizStep2').style.display = 'block';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/ai_studio/generate-quiz`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ content: content })
+                });
+                
+                if (response.ok) {
+                    currentAIQuizModel = await response.json();
+                    renderAIQuizEditor();
+                } else {
+                    alert('Error generating quiz. Checking console.');
+                    console.error(await response.text());
+                    document.getElementById('aiQuizStep1').style.display = 'block';
+                    document.getElementById('aiQuizStep2').style.display = 'none';
+                }
+            } catch (e) {
+                alert('API Error: ' + e);
+                document.getElementById('aiQuizStep1').style.display = 'block';
+                document.getElementById('aiQuizStep2').style.display = 'none';
+            }
+        }
+
+        function renderAIQuizEditor() {
+            document.getElementById('aiQuizStep2').style.display = 'none';
+            document.getElementById('aiQuizStep3').style.display = 'block';
+            
+            document.getElementById('aiQuizTitle').value = currentAIQuizModel.title || "AI Generated Quiz";
+            document.getElementById('aiQuizDesc').value = currentAIQuizModel.description || "";
+            
+            const container = document.getElementById('aiQuizQuestionsContainer');
+            container.innerHTML = '';
+            
+            if(!currentAIQuizModel.questions || currentAIQuizModel.questions.length === 0) {
+                container.innerHTML = '<div class="alert alert-danger">AI failed to generate structural questions. Please try again or check your content.</div>';
+                return;
+            }
+            
+            currentAIQuizModel.questions.forEach((q, i) => {
+                let optionsHtml = '';
+                if(q.question_type === 'multiple_choice' && q.options) {
+                    optionsHtml = `<div class="mt-2 text-muted small mb-1"><strong>Options:</strong></div>`;
+                    q.options.forEach((opt, oi) => {
+                        optionsHtml += `<input type="text" class="form-control mb-1 ai-opt-${i}-${oi}" value="${opt}">`;
+                    });
+                }
+                
+                container.innerHTML += `
+                    <div class="question-card border p-3 mb-3">
+                        <label><strong>Question ${i+1}</strong></label>
+                        <input type="text" class="form-control mb-2 ai-q-text-${i}" value="${q.text}">
+                        
+                        <div class="row mb-2">
+                            <div class="col-md-6">
+                                <label class="text-muted small">Correct Answer</label>
+                                <input type="text" class="form-control ai-q-correct-${i}" value="${q.correct_answer}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="text-muted small">Points</label>
+                                <input type="number" class="form-control ai-q-points-${i}" value="${q.points || 1}" step="1">
+                            </div>
+                        </div>
+                        ${optionsHtml}
+                        <div class="mt-2">
+                            <label class="text-muted small">Explanation</label>
+                            <input type="text" class="form-control ai-q-explanation-${i}" value="${q.explanation || ''}">
+                        </div>
+                        <input type="hidden" class="ai-q-type-${i}" value="${q.question_type}">
+                    </div>
+                `;
+            });
+        }
+
+        async function saveAIQuizToDatabase() {
+            const title = document.getElementById('aiQuizTitle').value;
+            const desc = document.getElementById('aiQuizDesc').value;
+            const subject = document.getElementById('aiQuizSubjectTarget').value;
+            const passing_score = parseFloat(document.getElementById('aiQuizPassScore').value);
+            
+            if(!currentAIQuizModel || !currentAIQuizModel.questions) return;
+            
+            const finalQuestions = currentAIQuizModel.questions.map((q, i) => {
+                const type = document.querySelector(`.ai-q-type-${i}`).value;
+                let finalOptions = [];
+                if(type === 'multiple_choice') {
+                    for(let oi=0; oi<4; oi++) {
+                        const optEl = document.querySelector(`.ai-opt-${i}-${oi}`);
+                        if(optEl) finalOptions.push(optEl.value);
+                    }
+                }
+                return {
+                    text: document.querySelector(`.ai-q-text-${i}`).value,
+                    question_type: type,
+                    correct_answer: document.querySelector(`.ai-q-correct-${i}`).value,
+                    points: parseFloat(document.querySelector(`.ai-q-points-${i}`).value),
+                    options: finalOptions.length > 0 ? finalOptions : null,
+                    explanation: document.querySelector(`.ai-q-explanation-${i}`).value
+                };
+            });
+            
+            const quizData = {
+                title: title,
+                description: desc,
+                subject: subject,
+                time_limit: null,
+                passing_score: passing_score,
+                questions: finalQuestions
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/quizzes/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(quizData)
+                });
+                if(response.ok) {
+                    alert("✨ AI Quiz Successfully Saved to Database!");
+                    // Reset wizard
+                    document.getElementById('aiQuizSourceContent').value = '';
+                    document.getElementById('aiQuizStep3').style.display = 'none';
+                    document.getElementById('aiQuizStep1').style.display = 'block';
+                    loadQuizzes();
+                    showSection('quizzes');
+                } else {
+                    const err = await response.json();
+                    alert("Error saving: " + JSON.stringify(err));
+                }
+            } catch(e) { alert("API Error: "+e); }
         }
     </script>
 </body>

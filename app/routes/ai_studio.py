@@ -29,3 +29,11 @@ class AIGradeRequest(BaseModel):
 def grade_answer(req: AIGradeRequest, current_teacher = Depends(get_current_teacher)):
     """Uses mock AI to grade a student's rationale."""
     return ai_assistant.grade_text_answer(req.question_text, req.student_answer, req.max_points)
+
+class QuizGenerationRequest(BaseModel):
+    content: str
+    
+@router.post("/generate-quiz")
+def generate_quiz(req: QuizGenerationRequest, current_teacher = Depends(get_current_teacher)):
+    """Passes raw text study material to Gemini to parse into a structured editable quiz JSON."""
+    return ai_assistant.generate_quiz_from_content(req.content)
