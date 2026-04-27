@@ -444,3 +444,44 @@ def delete_all_users(db: Session = Depends(get_db)):
             "message": str(e)
         }
 
+@router.post("/force-fix-schema")
+def force_fix_schema(db: Session = Depends(get_db)):
+    """Force fix missing columns directly without checking information_schema"""
+    messages = []
+    
+    # 1. Subject ID on Quizzes
+    try:
+        db.execute(text("ALTER TABLE quizzes ADD COLUMN subject_id INTEGER REFERENCES subjects(id)"))
+        messages.append("Added subject_id to quizzes")
+    except Exception as e:
+        db.rollback()
+        messages.append(f"Skipped subject_id on quizzes: {str(e)}")
+        
+    # 2. Grade ID on Quizzes
+    try:
+        db.execute(text("ALTER TABLE quizzes ADD COLUMN grade_id INTEGER REFERENCES grades(id)"))
+        messages.append("Added grade_id to quizzes")
+    except Exception as e:
+        db.rollback()
+        messages.append(f"Skipped grade_id on quizzes: {str(e)}")
+        
+    # 3. Subject ID on Assignments
+    try:
+        db.execute(text("ALTER TABLE assignments ADD COLUMN subject_id INTEGER REFERENCES subjects(id)"))
+        messages.append("Added subject_id to assignments")
+    except Exception as e:
+        db.rollback()
+        messages.append(f"Skipped subject_id on assignments: {str(e)}")
+        
+    # 4. Grade ID on Assignments
+    try:
+        db.execute(text("ALTER TABLE assignments ADD COLUMN grade_id INTEGER REFERENCES grades(id)"))
+        messages.append("Added grade_id to assignments")
+    except Exception as e:
+        db.rollback()
+        messages.append(f"Skipped grade_id on assignments: {str(e)}")
+        
+    db.commit()
+    return {"status": "success", "messages": messages}
+
+
