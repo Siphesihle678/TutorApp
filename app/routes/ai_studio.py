@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+import os
 from ..services.ai_service import ai_assistant
 from ..core.auth import get_current_teacher
 from pydantic import BaseModel
@@ -37,3 +38,21 @@ class QuizGenerationRequest(BaseModel):
 def generate_quiz(req: QuizGenerationRequest, current_teacher = Depends(get_current_teacher)):
     """Passes raw text study material to Gemini to parse into a structured editable quiz JSON."""
     return ai_assistant.generate_quiz_from_content(req.content)
+
+@router.post("/generate-quiz-file")
+async def generate_quiz_file(file: UploadFile = File(...), current_teacher = Depends(get_current_teacher)):
+    """Uploads study material file to Gemini to parse into a structured editable quiz JSON."""
+    temp_file_path = f"temp_{file.filename}"
+    try:
+        # Save file temporarily
+        content = await file.read()
+        with open(temp_file_path, "wb") as f:
+            f.write(content)
+            
+        # Generate quiz from file
+        result = ai_assistant.generate_quiz_from_file(temp_file_path)
+        return result
+    finally:
+        # Clean up local temp file
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)

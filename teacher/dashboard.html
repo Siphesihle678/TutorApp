@@ -130,13 +130,19 @@
 
                 <div id="ai-quiz-wizard-section" style="display: none;">
                     <h2>✨ AI Quiz Generator Wizard</h2>
-                    <p class="text-muted">Paste your study material below, and the AI will auto-generate a complete, editable Quiz!</p>
+                    <p class="text-muted">Paste your study material or upload a legacy QuizApp file below, and the AI will auto-generate a complete, editable Quiz!</p>
                     
                     <!-- Wizard Step 1: Input -->
                     <div id="aiQuizStep1" class="stats-card mb-4">
                         <h4>Step 1: Provide Study Content</h4>
-                        <textarea id="aiQuizSourceContent" class="form-control mb-3" rows="8" placeholder="Paste textbook text, notes, or paragraphs here..."></textarea>
-                        <button class="btn btn-primary" onclick="generateAIQuiz()">🧠 Generate Quiz</button>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Upload Document (HTML, PDF, DOCX)</label>
+                            <input type="file" id="aiQuizSourceFile" class="form-control mb-2">
+                            <div class="text-center my-2 text-muted fw-bold">OR</div>
+                            <label class="form-label fw-bold">Paste Raw Text</label>
+                            <textarea id="aiQuizSourceContent" class="form-control" rows="6" placeholder="Paste textbook text, notes, or paragraphs here..."></textarea>
+                        </div>
+                        <button class="btn btn-primary w-100" onclick="generateAIQuiz()">🧠 Generate Quiz</button>
                     </div>
 
                     <!-- Wizard Step 2: Processing -->
@@ -1132,21 +1138,40 @@
         let currentAIQuizModel = null;
 
         async function generateAIQuiz() {
+            const fileInput = document.getElementById('aiQuizSourceFile');
             const content = document.getElementById('aiQuizSourceContent').value;
-            if(!content) { alert('Please paste some content first!'); return; }
+            
+            const hasFile = fileInput.files && fileInput.files.length > 0;
+            
+            if(!content && !hasFile) { alert('Please upload a file or paste some content first!'); return; }
             
             document.getElementById('aiQuizStep1').style.display = 'none';
             document.getElementById('aiQuizStep2').style.display = 'block';
             
             try {
-                const response = await fetch(`${API_BASE_URL}/ai_studio/generate-quiz`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({ content: content })
-                });
+                let response;
+                
+                if (hasFile) {
+                    const formData = new FormData();
+                    formData.append("file", fileInput.files[0]);
+                    
+                    response = await fetch(`${API_BASE_URL}/ai_studio/generate-quiz-file`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: formData
+                    });
+                } else {
+                    response = await fetch(`${API_BASE_URL}/ai_studio/generate-quiz`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({ content: content })
+                    });
+                }
                 
                 if (response.ok) {
                     currentAIQuizModel = await response.json();
@@ -1263,6 +1288,9 @@
                     alert("✨ AI Quiz Successfully Saved to Database!");
                     // Reset wizard
                     document.getElementById('aiQuizSourceContent').value = '';
+                    if (document.getElementById('aiQuizSourceFile')) {
+                        document.getElementById('aiQuizSourceFile').value = '';
+                    }
                     document.getElementById('aiQuizStep3').style.display = 'none';
                     document.getElementById('aiQuizStep1').style.display = 'block';
                     loadQuizzes();

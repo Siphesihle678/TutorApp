@@ -1,21 +1,19 @@
 import json
 import random
 import os
-import google.generativeai as genai
-from typing import Dict, Any
+from google import genai
+from google.genai import types
 
 # Configure Gemini (it will warn if key is invalid when called, not on import)
 _gemini_key = os.environ.get("GEMINI_API_KEY", "")
-if _gemini_key:
-    genai.configure(api_key=_gemini_key)
 
 class TutorAIAssistant:
-    """Fully functional AI wrapper leveraging Google Gemini 1.5 Flash."""
+    """Fully functional AI wrapper leveraging Google Gemini 2.5 Flash."""
     
     def __init__(self):
         # We use Flash by default as it is fast and heavily suitable for JSON/text tasks
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
-        self.json_model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+        self.client = genai.Client(api_key=_gemini_key) if _gemini_key else None
+        self.model_name = 'gemini-2.5-flash'
     
     def grade_text_answer(self, question_text: str, student_answer: str, max_points: float) -> dict:
         """Dynamically grade student answers."""
@@ -35,7 +33,11 @@ class TutorAIAssistant:
         - "ai_feedback": a very short 1-2 sentence constructive feedback.
         """
         try:
-            response = self.json_model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
             return json.loads(response.text)
         except Exception as e:
             print(f"Gemini API Error: {e}")
@@ -48,7 +50,10 @@ class TutorAIAssistant:
             
         prompt = f"Act as an expert curriculum designer. Generate a highly structured, engaging {duration_weeks}-week study plan markdown document for the topic: '{topic}'. Do not include introductory conversational text, just output exactly the markdown."
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
             return response.text
         except Exception as e:
             return f"**Error generating plan:** {str(e)}"
@@ -75,7 +80,11 @@ class TutorAIAssistant:
         Provide randomly invented, highly realistic data with 4-5 columns and exactly 5 items.
         """
         try:
-            response = self.json_model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
             return json.loads(response.text)
         except Exception as e:
             return {"error": f"Failed to generate dataset: {str(e)}"}
@@ -111,8 +120,61 @@ class TutorAIAssistant:
         }}
         """
         try:
-            response = self.json_model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
             return json.loads(response.text)
+        except Exception as e:
+            return {"title": "API Error", "description": str(e), "questions": []}
+
+    def generate_quiz_from_file(self, file_path: str) -> dict:
+        """Uploads a file to Gemini, generates a quiz from it, and cleans up the file."""
+        if not _gemini_key:
+            return {"title": "Mock API Key Quiz", "description": "You need to add GEMINI_API_KEY to your .env file.", "questions": []}
+            
+        try:
+            # Upload the file to Gemini
+            uploaded_file = self.client.files.upload(file=file_path)
+            
+            prompt = """
+            You are an expert test creator. Here is raw study material provided by a teacher in the attached document.
+            
+            Generate a beautiful, engaging quiz based STRICTLY on the content provided in the file. 
+            Create exactly 5 questions (mix of "multiple_choice", "true_false", and "short_answer").
+            
+            Output ONLY a valid JSON object adhering to this schema:
+            {
+                "title": "A catchy title summarizing the content",
+                "description": "A short 1 sentence description",
+                "questions": [
+                    {
+                        "text": "The question text",
+                        "question_type": "multiple_choice",
+                        "options": ["A", "B", "C", "D"], // Only for multiple_choice, otherwise empty array []
+                        "correct_answer": "The exact correct option string (e.g. 'A' or 'True' or 'The specific short answer keyword')",
+                        "points": 1.0,
+                        "explanation": "A very short explanation of why this is correct."
+                    }
+                ]
+            }
+            """
+            
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[uploaded_file, prompt],
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            
+            # Cleanup the file from Gemini
+            try:
+                self.client.files.delete(name=uploaded_file.name)
+            except Exception as e:
+                print(f"Warning: Failed to delete file {uploaded_file.name} from Gemini: {e}")
+                
+            return json.loads(response.text)
+            
         except Exception as e:
             return {"title": "API Error", "description": str(e), "questions": []}
 
