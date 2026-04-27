@@ -153,6 +153,26 @@
                             <!-- Register Form -->
                             <div class="tab-pane fade" id="register" role="tabpanel">
                                 <form id="registerForm">
+                                    <div class="mb-4 text-center">
+                                        <label class="form-label d-block mb-3">I am a...</label>
+                                        <div class="btn-group w-100" role="group" aria-label="Role selection">
+                                            <input type="radio" class="btn-check" name="registerRole" id="roleStudent" value="student" checked autocomplete="off">
+                                            <label class="btn btn-outline-primary p-3" for="roleStudent">
+                                                <i class="fas fa-user-graduate d-block mb-2 fs-4"></i> Student
+                                            </label>
+                                            
+                                            <input type="radio" class="btn-check" name="registerRole" id="roleTeacher" value="teacher" autocomplete="off">
+                                            <label class="btn btn-outline-primary p-3" for="roleTeacher">
+                                                <i class="fas fa-chalkboard-teacher d-block mb-2 fs-4"></i> Teacher
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3" id="tutorCodeContainer">
+                                        <label for="registerTutorCode" class="form-label">Tutor Invite Code <span class="text-muted">(Optional)</span></label>
+                                        <input type="text" class="form-control" id="registerTutorCode" placeholder="Enter 6-character code (if provided)">
+                                    </div>
+
                                     <div class="mb-3">
                                         <label for="registerName" class="form-label">Full Name</label>
                                         <input type="text" class="form-control" id="registerName" placeholder="Enter your full name" required>
@@ -164,13 +184,6 @@
                                     <div class="mb-3">
                                         <label for="registerPassword" class="form-label">Password</label>
                                         <input type="password" class="form-control" id="registerPassword" placeholder="Enter your password" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="registerRole" class="form-label">Role</label>
-                                        <select class="form-control" id="registerRole" required>
-                                            <option value="student">Student</option>
-                                            <option value="teacher">Teacher</option>
-                                        </select>
                                     </div>
                                     <button type="submit" class="btn btn-primary w-100" id="registerBtn">
                                         <i class="fas fa-user-plus me-2"></i>Register
@@ -298,6 +311,21 @@
             }
         });
 
+        // Handle role selection toggle
+        const roleRadios = document.querySelectorAll('input[name="registerRole"]');
+        const tutorCodeContainer = document.getElementById('tutorCodeContainer');
+        
+        roleRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'student') {
+                    tutorCodeContainer.style.display = 'block';
+                } else {
+                    tutorCodeContainer.style.display = 'none';
+                    document.getElementById('registerTutorCode').value = ''; // clear if teacher
+                }
+            });
+        });
+
         // Register form handler
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -305,18 +333,24 @@
             const name = document.getElementById('registerName').value;
             const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
-            const role = document.getElementById('registerRole').value;
+            const role = document.querySelector('input[name="registerRole"]:checked').value;
+            const tutor_code = document.getElementById('registerTutorCode').value || undefined;
             
             hideAlert('registerAlert');
             setLoading('registerBtn', true);
             
             try {
+                const payload = { name, email, password, role };
+                if (tutor_code) {
+                    payload.tutor_code = tutor_code;
+                }
+
                 const response = await fetch(`${API_BASE_URL}/auth/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ name, email, password, role })
+                    body: JSON.stringify(payload)
                 });
                 
                 const responseText = await response.text();

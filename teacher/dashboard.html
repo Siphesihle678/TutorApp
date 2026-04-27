@@ -36,7 +36,15 @@
             </div>
             <div class="col-md-9 col-lg-10 main-content">
                 <div id="overview-section">
-                    <h2>Dashboard Overview</h2>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="mb-0">Dashboard Overview</h2>
+                        <div class="alert alert-primary mb-0 py-2 d-flex align-items-center">
+                            <i class="fas fa-link me-2"></i>
+                            <strong>Your Invite Code:</strong> 
+                            <span id="tutorCodeDisplay" class="mx-2 fw-bold bg-white px-2 rounded border">Loading...</span>
+                            <button class="btn btn-sm btn-outline-primary" onclick="copyTutorCode()">Copy</button>
+                        </div>
+                    </div>
                     <div class="row">
                         <div class="col-md-3">
                             <div class="stats-card text-center">
@@ -386,6 +394,29 @@
                 }
             } catch (error) {
                 console.error('Error loading overview:', error);
+            }
+
+            // Load Tutor Code
+            try {
+                const tcResponse = await fetch(`${API_BASE_URL}/auth/me/tutor-code`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (tcResponse.ok) {
+                    const data = await tcResponse.json();
+                    document.getElementById('tutorCodeDisplay').textContent = data.tutor_code;
+                } else {
+                    document.getElementById('tutorCodeDisplay').textContent = "Not Available";
+                }
+            } catch (error) {
+                console.error('Error fetching tutor code:', error);
+            }
+        }
+
+        function copyTutorCode() {
+            const code = document.getElementById('tutorCodeDisplay').textContent;
+            if(code && code !== "Loading..." && code !== "Not Available") {
+                navigator.clipboard.writeText(code);
+                alert("Invite code copied to clipboard!");
             }
         }
 

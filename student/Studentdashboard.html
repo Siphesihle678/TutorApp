@@ -59,6 +59,20 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card shadow-sm border-0 bg-white">
+                                <div class="card-body d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1"><i class="fas fa-chalkboard-teacher text-primary me-2"></i>Tutor Connection</h5>
+                                        <p class="mb-0 text-muted" id="tutorStatusText">Loading status...</p>
+                                    </div>
+                                    <button class="btn btn-outline-primary" id="connectTutorBtn" onclick="showConnectTutorModal()" style="display: none;">Link Account</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div id="quizzes-section" style="display: none;">
@@ -86,6 +100,28 @@
                 <div id="leaderboard-section" style="display: none;">
                     <h2>Class Leaderboard</h2>
                     <div id="leaderboardList">Loading leaderboard...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connect Tutor Modal -->
+    <div class="modal fade" id="connectTutorModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Connect to Tutor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Enter Tutor Code</label>
+                        <input type="text" class="form-control" id="tutorCodeInput" placeholder="6-character code">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitTutorCode()">Connect</button>
                 </div>
             </div>
         </div>
@@ -252,6 +288,21 @@
 
         async function loadOverview() {
             try {
+                // Check connection status
+                const userResp = await fetch(`${API_BASE_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (userResp.ok) {
+                    const userData = await userResp.json();
+                    if (userData.tutor_id) {
+                        document.getElementById('tutorStatusText').innerHTML = `<span class="badge bg-success">Connected</span>`;
+                        document.getElementById('connectTutorBtn').style.display = 'none';
+                    } else {
+                        document.getElementById('tutorStatusText').innerHTML = `<span class="badge bg-warning text-dark">Not Connected</span>`;
+                        document.getElementById('connectTutorBtn').style.display = 'block';
+                    }
+                }
+
                 const response = await fetch(`${API_BASE_URL}/dashboard/student/my-performance`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
@@ -264,6 +315,40 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
+            }
+        }
+
+        function showConnectTutorModal() {
+            const modal = new bootstrap.Modal(document.getElementById('connectTutorModal'));
+            document.getElementById('tutorCodeInput').value = '';
+            modal.show();
+        }
+
+        async function submitTutorCode() {
+            const code = document.getElementById('tutorCodeInput').value;
+            if (!code) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/connect-tutor`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                    },
+                    body: JSON.stringify({ tutor_code: code })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    alert(`Success: ${data.message} (${data.tutor_name})`);
+                    bootstrap.Modal.getInstance(document.getElementById('connectTutorModal')).hide();
+                    loadOverview();
+                } else {
+                    alert(`Error: ${data.detail || 'Invalid code'}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while connecting.');
             }
         }
 

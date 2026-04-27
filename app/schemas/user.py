@@ -23,6 +23,9 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     tutor_id: Optional[int] = None  # Allow updating tutor assignment
 
+class ConnectTutorRequest(BaseModel):
+    tutor_code: str
+
 class UserRead(UserBase):
     id: int
     role: UserRole

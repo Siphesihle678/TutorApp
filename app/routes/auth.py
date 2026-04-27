@@ -5,7 +5,7 @@ from ..core.security import get_password_hash, verify_password, create_access_to
 from ..core.auth import get_current_user
 from ..core.utils import generate_unique_tutor_code, find_tutor_by_code
 from ..models.user import User
-from ..schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate
+from ..schemas.user import UserCreate, UserRead, UserLogin, Token, UserUpdate, ConnectTutorRequest
 
 router = APIRouter()
 
@@ -167,6 +167,31 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
             status_code=500,
             detail="An internal server error occurred during login. Please try again."
         )
+
+@router.post("/connect-tutor")
+def connect_tutor(req: ConnectTutorRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Connect a student to a tutor using a tutor code"""
+    if current_user.role != "student":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only students can connect to a tutor"
+        )
+        
+    tutor = find_tutor_by_code(db, req.tutor_code)
+    if not tutor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invalid tutor code. Please check with your tutor."
+        )
+        
+    current_user.tutor_id = tutor.id
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Successfully connected to tutor",
+        "tutor_name": tutor.name
+    }
 
 @router.get("/validate-tutor-code/{tutor_code}")
 def validate_tutor_code(tutor_code: str, db: Session = Depends(get_db)):
